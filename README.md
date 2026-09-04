@@ -1,2 +1,18 @@
-# skill-intelligence-platform
-AI-powered skill intelligence platform that assesses competencies, identifies skill gaps, and delivers personalized learning recommendations through iGOT Karmayogi and NSSTA training resources, with AI-generated MCQs and quizzes for continuous capacity building.
+# Skill Intelligence Platform
+
+AI-enabled competency and learning platform for capacity building in India's Official Statistical System.
+
+## Problem
+
+The platform identifies competency gaps, recommends personalized learning resources, and supports AI-powered assessment generation from learning materials.
+
+## Tech Stack
+
+- Frontend: Next.js
+- Backend: FastAPI
+- Database: PostgreSQL
+- AI/RAG: To be implemented
+
+## Project Status
+
+Phase 1 — Foundation
