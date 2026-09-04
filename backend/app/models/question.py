@@ -6,6 +6,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Float,
     String,
     Text,
     func,
@@ -39,7 +40,6 @@ class Question(Base):
     question_type: Mapped[str] = mapped_column(
         String(30),
         nullable=False,
-        default="mcq",
     )
 
     difficulty: Mapped[str] = mapped_column(
@@ -99,14 +99,15 @@ class Question(Base):
         back_populates="questions",
     )
 
-    answers = relationship(
-        "Answer",
-        back_populates="question",
-    )
-
     source_content = relationship(
         "LearningContent",
         back_populates="questions",
+    )
+
+    answers = relationship(
+        "Answer",
+        back_populates="question",
+        cascade="all, delete-orphan",
     )
 
 
@@ -142,7 +143,7 @@ class Answer(Base):
     )
 
     score: Mapped[float] = mapped_column(
-        default=0,
+        Float,
         nullable=False,
     )
 
@@ -152,11 +153,9 @@ class Answer(Base):
         nullable=False,
     )
 
-    __table_args__ = (
-        # One answer per question in an assessment.
-        # Change this later if you want answer history.
-        {"comment": "Stores one response per question per assessment"},
-    )
+    __table_args__ = {
+        "comment": "Stores one response per question per assessment"
+    }
 
     assessment = relationship(
         "Assessment",

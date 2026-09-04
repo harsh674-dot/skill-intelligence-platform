@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     CheckConstraint,
@@ -38,10 +39,9 @@ class Assessment(Base):
     status: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
-        default="in_progress",
     )
 
-    score: Mapped[float | None] = mapped_column(
+    score: Mapped[Decimal | None] = mapped_column(
         Numeric(5, 2),
         nullable=True,
     )
@@ -72,11 +72,13 @@ class Assessment(Base):
         ),
     )
 
+    # Relationship to User
     user = relationship(
         "User",
         back_populates="assessments",
     )
 
+    # Relationship to Answer
     answers = relationship(
         "Answer",
         back_populates="assessment",
