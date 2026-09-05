@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import (
+    auth,
     competency,
     courses,
     health,
@@ -16,33 +17,69 @@ app = FastAPI(
 )
 
 
+# ---------------------------------------------------------
+# CORS
+# ---------------------------------------------------------
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-app.include_router(health.router)
+# ---------------------------------------------------------
+# API ROUTES
+# ---------------------------------------------------------
+
+# Health
+app.include_router(
+    health.router,
+)
+
+
+# Competencies
 app.include_router(
     competency.router,
     prefix="/api",
 )
+
+
+# Roles
 app.include_router(
     roles.router,
     prefix="/api",
 )
+
+
+# Courses
 app.include_router(
     courses.router,
     prefix="/api",
 )
+
+
+# Questions
 app.include_router(
     questions.router,
     prefix="/api",
 )
 
+
+# Authentication
+app.include_router(
+    auth.router,
+    prefix="/api",
+)
+
+
+# ---------------------------------------------------------
+# ROOT
+# ---------------------------------------------------------
 
 @app.get("/")
 def root():
