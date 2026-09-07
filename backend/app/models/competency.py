@@ -119,6 +119,12 @@ class RoleCompetency(Base):
         default=False,
     )
 
+    organizational_priority: Mapped[int] = mapped_column(
+    SmallInteger,
+    nullable=False,
+    default=1,
+)
+
     __table_args__ = (
         UniqueConstraint(
             "role_id",
@@ -128,6 +134,10 @@ class RoleCompetency(Base):
         CheckConstraint(
             "required_level BETWEEN 1 AND 5",
             name="check_required_level",
+        ),
+        CheckConstraint(
+             "organizational_priority BETWEEN 1 AND 3",
+             name="check_organizational_priority",
         ),
     )
 

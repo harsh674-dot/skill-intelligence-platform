@@ -641,6 +641,7 @@ def seed_database():
                         competency_id=competency.id,
                         required_level=required_level,
                         is_critical=is_critical,
+                        organizational_priority=organizational_priority,
                     )
                     db.add(existing)
                 else:
