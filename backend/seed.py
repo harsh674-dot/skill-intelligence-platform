@@ -158,7 +158,7 @@ COMPETENCIES = [
 # ROLE → COMPETENCY
 #
 # Format:
-# "Competency": (required_level, is_critical)
+# "Competency": (required_level, is_critical, organizational_priority)
 #
 # Levels:
 # 1 = Beginner
@@ -170,40 +170,40 @@ COMPETENCIES = [
 
 ROLE_COMPETENCIES = {
     "Statistical Officer": {
-        "Sampling": (4, True),
-        "Survey Design": (4, True),
-        "Statistical Analysis": (4, True),
-        "Data Quality": (4, True),
-        "Python": (3, False),
-        "SQL": (3, False),
-        "Data Visualization": (3, False),
-        "Communication": (4, True),
+        "Sampling": (4, True, 2),
+        "Survey Design": (4, True, 2),
+        "Statistical Analysis": (4, True, 2),
+        "Data Quality": (4, True, 3),
+        "Python": (3, False, 1),
+        "SQL": (3, False, 1),
+        "Data Visualization": (3, False, 1),
+        "Communication": (4, True, 2),
     },
 
     "Data Analyst": {
-        "Statistical Analysis": (4, True),
-        "Python": (4, True),
-        "SQL": (4, True),
-        "Data Visualization": (4, True),
-        "Data Quality": (3, False),
-        "Communication": (4, True),
+        "Statistical Analysis": (4, True, 2),
+        "Python": (4, True, 2),
+        "SQL": (4, True, 2),
+        "Data Visualization": (4, True, 2),
+        "Data Quality": (3, False, 3),
+        "Communication": (4, True, 2),
     },
 
     "Data Scientist": {
-        "Statistical Analysis": (4, True),
-        "Python": (5, True),
-        "SQL": (4, False),
-        "Machine Learning": (5, True),
-        "Data Visualization": (3, False),
-        "Data Quality": (4, True),
+        "Statistical Analysis": (4, True, 2),
+        "Python": (5, True, 2),
+        "SQL": (4, False, 1),
+        "Machine Learning": (5, True, 2),
+        "Data Visualization": (3, False, 1),
+        "Data Quality": (4, True, 3),
     },
 
     "IT Officer": {
-        "SQL": (3, False),
-        "Python": (3, False),
-        "Cybersecurity": (5, True),
-        "Data Privacy": (4, True),
-        "Communication": (3, False),
+        "SQL": (3, False, 1),
+        "Python": (3, False, 1),
+        "Cybersecurity": (5, True, 3),
+        "Data Privacy": (4, True, 3),
+        "Communication": (3, False, 1),
     },
 }
 
@@ -654,7 +654,7 @@ def seed_database():
 
             for competency_name, values in mappings.items():
 
-                required_level, is_critical = values
+                required_level, is_critical, organizational_priority = values
 
                 competency = competency_map[
                     competency_name
@@ -669,16 +669,20 @@ def seed_database():
                 )
 
                 if existing is None:
-
                     mapping = RoleCompetency(
                         id=uuid.uuid4(),
                         role_id=role.id,
                         competency_id=competency.id,
                         required_level=required_level,
                         is_critical=is_critical,
+                        organizational_priority=organizational_priority,
                     )
 
                     db.add(mapping)
+                else:
+                    existing.required_level = required_level
+                    existing.is_critical = is_critical
+                    existing.organizational_priority = organizational_priority
 
                 role_mapping_count += 1
 
@@ -761,7 +765,6 @@ def seed_database():
                 )
 
                 if existing is None:
-
                     mapping = CourseCompetency(
                         id=uuid.uuid4(),
                         course_id=course.id,
@@ -770,6 +773,8 @@ def seed_database():
                     )
 
                     db.add(mapping)
+                else:
+                    existing.target_level = target_level
 
                 course_mapping_count += 1
 
