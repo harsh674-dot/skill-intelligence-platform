@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import (
+    assessment,
     auth,
     competency,
     courses,
@@ -69,6 +70,11 @@ app.include_router(
     prefix="/api",
 )
 
+# Assessments
+app.include_router(
+    assessment.router,
+    prefix="/api",
+)
 
 # Authentication
 app.include_router(
