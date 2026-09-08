@@ -16,6 +16,7 @@ from app.schemas.assessment import (
     AnswerSubmitResponse,
 )
 
+
 router = APIRouter(
     prefix="/assessments",
     tags=["Assessments"],
@@ -112,23 +113,56 @@ def submit_answer(
         )
     )
 
-    # Calculate correctness and score
-    is_correct = request.selected_answer == question.correct_answer
-    score = 1.0 if is_correct else 0.0
+    # ---------------------------------------------------------
+    # Determine whether the submitted answer is correct
+    # ---------------------------------------------------------
+    selected_answer = request.selected_answer.strip()
+    correct_answer = question.correct_answer.strip()
 
+    # The database stores the correct option key.
+    # Example:
+    #   correct_answer = "B"
+    #
+    # The question options may be:
+    #   {
+    #       "A": "Mean",
+    #       "B": "Median",
+    #       "C": "Mode"
+    #   }
+    #
+    # The user may submit either:
+    #   "B"
+    # or:
+    #   "Median"
+    correct_option_text = str(
+        (question.options or {}).get(correct_answer, "")
+    ).strip()
+
+    is_correct = (
+        selected_answer.casefold() == correct_answer.casefold()
+        or selected_answer.casefold()
+        == correct_option_text.casefold()
+    )
+
+    score = 1 if is_correct else 0
+
+    # ---------------------------------------------------------
+    # Save or update answer
+    # ---------------------------------------------------------
     if existing_answer:
-        # Update the existing answer
-        existing_answer.selected_answer = request.selected_answer
+        # Update existing answer
+        existing_answer.selected_answer = selected_answer
         existing_answer.is_correct = is_correct
         existing_answer.score = score
 
         answer = existing_answer
+
     else:
-        # Create a new answer
+        # Create new answer
         answer = Answer(
             assessment_id=assessment_id,
             question_id=request.question_id,
-            selected_answer=request.selected_answer,
+            selected_answer=selected_answer,
             is_correct=is_correct,
             score=score,
         )
@@ -198,7 +232,7 @@ def finish_assessment(
     total_questions = len(questions)
     total_answered = len(answers)
 
-    # Unanswered questions contribute 0 to the final score
+    # Unanswered questions contribute 0 to final score
     score = (
         (correct_answers / total_questions) * 100
         if total_questions > 0
@@ -222,6 +256,7 @@ def finish_assessment(
         "correct_answers": correct_answers,
         "score": round(score, 2),
     }
+
 
 @router.post(
     "/{assessment_id}/score",
@@ -269,7 +304,10 @@ def score_assessment(
     competency_stats = {}
 
     for answer in answers:
-        question = db.get(Question, answer.question_id)
+        question = db.get(
+            Question,
+            answer.question_id,
+        )
 
         if not question:
             continue
@@ -299,20 +337,24 @@ def score_assessment(
         if accuracy <= 20:
             level = 1
             proficiency = "Beginner"
+
         elif accuracy <= 40:
             level = 2
             proficiency = "Basic"
+
         elif accuracy <= 60:
             level = 3
             proficiency = "Intermediate"
+
         elif accuracy <= 80:
             level = 4
             proficiency = "Advanced"
+
         else:
             level = 5
             proficiency = "Expert"
 
-        # Find the user's existing competency record
+        # Find user's existing competency record
         user_competency = db.scalar(
             select(UserCompetency).where(
                 UserCompetency.user_id == current_user.id,
@@ -324,7 +366,10 @@ def score_assessment(
             # Update existing competency level
             user_competency.current_level = level
             user_competency.source = "assessment"
-            user_competency.last_assessed_at = datetime.now(timezone.utc)
+            user_competency.last_assessed_at = (
+                datetime.now(timezone.utc)
+            )
+
         else:
             # Create competency record if it doesn't exist
             user_competency = UserCompetency(
@@ -356,6 +401,7 @@ def score_assessment(
         "results": results,
     }
 
+
 @router.get(
     "/{assessment_id}/gaps",
 )
@@ -382,7 +428,10 @@ def calculate_skill_gaps(
     if assessment.status != "completed":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Assessment must be completed before calculating skill gaps",
+            detail=(
+                "Assessment must be completed "
+                "before calculating skill gaps"
+            ),
         )
 
     # User must have a job role
@@ -392,25 +441,29 @@ def calculate_skill_gaps(
             detail="User does not have a job role assigned",
         )
 
-    # Get required competency levels for the user's role
+    # Get required competency levels for user's role
     role_competencies = db.scalars(
         select(RoleCompetency).where(
-            RoleCompetency.role_id == current_user.job_role_id
+            RoleCompetency.role_id
+            == current_user.job_role_id
         )
     ).all()
 
     gaps = []
 
     for role_competency in role_competencies:
-        # Get the user's current competency level
+
+        # Get user's current competency level
         user_competency = db.scalar(
             select(UserCompetency).where(
                 UserCompetency.user_id == current_user.id,
-                UserCompetency.competency_id == role_competency.competency_id,
+                UserCompetency.competency_id
+                == role_competency.competency_id,
             )
         )
 
-        # If no assessment evidence exists yet, use Beginner (Level 1)
+        # If no assessment evidence exists,
+        # use Beginner (Level 1)
         current_level = (
             user_competency.current_level
             if user_competency
@@ -420,7 +473,10 @@ def calculate_skill_gaps(
         required_level = role_competency.required_level
 
         # Skill gap = required - current
-        gap = max(required_level - current_level, 0)
+        gap = max(
+            required_level - current_level,
+            0,
+        )
 
         gaps.append(
             {
@@ -438,6 +494,7 @@ def calculate_skill_gaps(
         "role_id": current_user.job_role_id,
         "gaps": gaps,
     }
+
 
 @router.get(
     "/{assessment_id}/priority",
@@ -465,7 +522,10 @@ def calculate_priorities(
     if assessment.status != "completed":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Assessment must be completed before calculating priorities",
+            detail=(
+                "Assessment must be completed "
+                "before calculating priorities"
+            ),
         )
 
     # User must have a job role
@@ -478,22 +538,25 @@ def calculate_priorities(
     # Get role competency requirements
     role_competencies = db.scalars(
         select(RoleCompetency).where(
-            RoleCompetency.role_id == current_user.job_role_id
+            RoleCompetency.role_id
+            == current_user.job_role_id
         )
     ).all()
 
     priorities = []
 
     for role_competency in role_competencies:
+
         # Get user's current competency level
         user_competency = db.scalar(
             select(UserCompetency).where(
                 UserCompetency.user_id == current_user.id,
-                UserCompetency.competency_id == role_competency.competency_id,
+                UserCompetency.competency_id
+                == role_competency.competency_id,
             )
         )
 
-        # Default to Beginner if no assessment evidence exists
+        # Default to Beginner if no assessment evidence
         current_level = (
             user_competency.current_level
             if user_competency
@@ -503,7 +566,10 @@ def calculate_priorities(
         required_level = role_competency.required_level
 
         # Calculate skill gap
-        gap = max(required_level - current_level, 0)
+        gap = max(
+            required_level - current_level,
+            0,
+        )
 
         # Criticality weight
         criticality_weight = (
@@ -529,7 +595,9 @@ def calculate_priorities(
                 "current_level": current_level,
                 "gap": gap,
                 "is_critical": role_competency.is_critical,
-                "organizational_priority": organizational_priority,
+                "organizational_priority": (
+                    organizational_priority
+                ),
                 "priority_score": priority_score,
             }
         )
