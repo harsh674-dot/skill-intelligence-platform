@@ -7,7 +7,9 @@ from app.api.routes import (
     competency,
     courses,
     health,
+    dashboard,
     questions,
+    recommendations,
     roles,
 )
 
@@ -79,6 +81,18 @@ app.include_router(
 # Authentication
 app.include_router(
     auth.router,
+    prefix="/api",
+)
+
+# Recommendations
+app.include_router(
+    recommendations.router,
+    prefix="/api",
+)
+
+# Dashboard
+app.include_router(
+    dashboard.router,
     prefix="/api",
 )
 
