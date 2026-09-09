@@ -6,19 +6,16 @@ from app.api.routes import (
     auth,
     competency,
     courses,
-    dashboard,
     health,
-    learning,
+    dashboard,
     questions,
     recommendations,
     roles,
+    learning,
     search,
+    ai_questions,
 )
 
-
-# ---------------------------------------------------------
-# APPLICATION
-# ---------------------------------------------------------
 
 app = FastAPI(
     title="Skill Intelligence Platform API",
@@ -26,10 +23,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-
-# ---------------------------------------------------------
-# CORS
-# ---------------------------------------------------------
 
 app.add_middleware(
     CORSMiddleware,
@@ -46,78 +39,62 @@ app.add_middleware(
 # API ROUTES
 # ---------------------------------------------------------
 
-# Health
 app.include_router(
     health.router,
 )
 
-
-# Competencies
 app.include_router(
     competency.router,
     prefix="/api",
 )
 
-
-# Roles
 app.include_router(
     roles.router,
     prefix="/api",
 )
 
-
-# Courses
 app.include_router(
     courses.router,
     prefix="/api",
 )
 
-
-# Questions
 app.include_router(
     questions.router,
     prefix="/api",
 )
 
-
-# Assessments
 app.include_router(
     assessment.router,
     prefix="/api",
 )
 
-
-# Authentication
 app.include_router(
     auth.router,
     prefix="/api",
 )
 
-
-# Recommendations
 app.include_router(
     recommendations.router,
     prefix="/api",
 )
 
-
-# Dashboard
 app.include_router(
     dashboard.router,
     prefix="/api",
 )
 
-
-# Learning
 app.include_router(
     learning.router,
     prefix="/api",
 )
 
-
-# Semantic Search
 app.include_router(
     search.router,
+    prefix="/api",
+)
+
+app.include_router(
+    ai_questions.router,
     prefix="/api",
 )
 

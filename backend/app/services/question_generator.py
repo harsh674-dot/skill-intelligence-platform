@@ -1,10 +1,10 @@
 """
 AI-powered MCQ generation from learning content.
 
-Uses the free local Hugging Face model:
+Uses:
     google/flan-t5-base
 
-No OpenAI API key is required.
+Generates varied MCQs from supplied learning content.
 """
 
 import re
@@ -28,6 +28,17 @@ VALID_DIFFICULTIES = {
     "intermediate",
     "advanced",
 }
+
+QUESTION_FOCUSES = [
+    "definition or meaning of an important concept",
+    "a key fact or statement from the material",
+    "a relationship between two concepts",
+    "a practical application or example",
+    "a comparison or distinction between concepts",
+    "a cause, effect, or consequence",
+    "an important property or characteristic",
+    "a calculation, rule, or technical detail if present",
+]
 
 
 # ============================================================
@@ -55,10 +66,10 @@ print("Question generation model loaded.")
 
 def _generate_text(prompt: str) -> str:
     """
-    Generate text using FLAN-T5 directly.
+    Generate text using FLAN-T5.
 
-    This avoids transformers.pipeline(), which may not expose
-    the text2text-generation task in newer transformers versions.
+    Sampling is enabled so repeated calls with the same
+    learning content can produce different questions.
     """
 
     inputs = tokenizer(
@@ -72,10 +83,18 @@ def _generate_text(prompt: str) -> str:
         outputs = model.generate(
             **inputs,
             max_new_tokens=MAX_OUTPUT_LENGTH,
-            num_beams=5,
-            do_sample=False,
-            early_stopping=True,
-            no_repeat_ngram_size=2,
+
+            # Sampling prevents identical deterministic output.
+            do_sample=True,
+            temperature=0.85,
+            top_p=0.92,
+            top_k=50,
+
+            # Prevent repetitive phrases.
+            no_repeat_ngram_size=3,
+
+            # Keep generation reasonably controlled.
+            repetition_penalty=1.15,
         )
 
     result = tokenizer.decode(
@@ -116,16 +135,13 @@ def _extract_option(
     text: str,
     letter: str,
 ) -> str | None:
-    """
-    Extract an option from formats such as:
 
-        A. Python
-        A) Python
-        A: Python
-        A Python
-    """
-
-    pattern = rf"(?:^|\s){letter}\s*[\.\):\-]?\s*(.+?)(?=\s+[A-D]\s*[\.\):\-]?\s+|$)"
+    pattern = (
+        rf"(?:^|\s){letter}"
+        rf"\s*[\.\):\-]?\s*"
+        rf"(.+?)"
+        rf"(?=\s+[A-D]\s*[\.\):\-]?\s+|$)"
+    )
 
     match = re.search(
         pattern,
@@ -138,9 +154,9 @@ def _extract_option(
 
     option = match.group(1).strip()
 
-    # Remove trailing answer/explanation sections.
     option = re.split(
-        r"\s+(?:Answer|Correct Answer|Explanation)\s*[:\-]?",
+        r"\s+(?:Answer|Correct Answer|Explanation)"
+        r"\s*[:\-]?",
         option,
         flags=re.IGNORECASE,
     )[0]
@@ -155,13 +171,9 @@ def _extract_option(
 # ============================================================
 
 def _extract_question(text: str) -> str:
-    """
-    Extract question from generated output.
-    """
 
     text = _clean_text(text)
 
-    # Remove common prefixes.
     text = re.sub(
         r"^question\s*[:\-]\s*",
         "",
@@ -169,7 +181,6 @@ def _extract_question(text: str) -> str:
         flags=re.IGNORECASE,
     )
 
-    # Stop before options.
     text = re.split(
         r"\s+(?:Options?|A)\s*[\:\.\)]",
         text,
@@ -185,12 +196,11 @@ def _extract_question(text: str) -> str:
 # ============================================================
 
 def _extract_answer(text: str) -> str | None:
-    """
-    Extract answer letter.
-    """
 
     patterns = [
-        r"(?:correct\s+answer|answer|correct)\s*[:\-]?\s*([A-D])\b",
+        r"(?:correct\s+answer|answer|correct)"
+        r"\s*[:\-]?\s*([A-D])\b",
+
         r"\b([A-D])\s*$",
     ]
 
@@ -213,20 +223,20 @@ def _extract_answer(text: str) -> str | None:
 # ============================================================
 
 def _extract_explanation(text: str) -> str:
-    """
-    Extract explanation if the model provides one.
-    """
 
     match = re.search(
-        r"(?:explanation|because)\s*[:\-]?\s*(.+)$",
+        r"(?:explanation|because)"
+        r"\s*[:\-]?\s*(.+)$",
         text,
         flags=re.IGNORECASE,
     )
 
     if match:
-        explanation = _clean_text(match.group(1))
 
-        # Don't return an excessively long explanation.
+        explanation = _clean_text(
+            match.group(1)
+        )
+
         return explanation[:1000]
 
     return ""
@@ -245,7 +255,12 @@ def _validate_mcq(
     if not question:
         return False, "Question is empty."
 
-    required_options = ["A", "B", "C", "D"]
+    required_options = [
+        "A",
+        "B",
+        "C",
+        "D",
+    ]
 
     for letter in required_options:
 
@@ -261,7 +276,6 @@ def _validate_mcq(
                 f"Option {letter} is empty.",
             )
 
-    # Make sure options aren't duplicates.
     normalized = [
         options[x].strip().lower()
         for x in required_options
@@ -283,72 +297,57 @@ def _validate_mcq(
 
 
 # ============================================================
-# FALLBACK MCQ
+# FALLBACK
 # ============================================================
 
 def _fallback_mcq(
     context: str,
     difficulty: str,
+    question_number: int = 1,
 ) -> dict[str, Any]:
-    """
-    Safe fallback when the local LLM generates an incomplete
-    response.
-
-    This guarantees that the API can still return a valid MCQ.
-    """
-
-    context_lower = context.lower()
 
     # --------------------------------------------------------
-    # Python-specific fallback
+    # Extract useful sentences from the content.
     # --------------------------------------------------------
 
-    if "python" in context_lower:
+    sentences = [
+        _clean_text(x)
+        for x in re.split(
+            r"[.!?]",
+            context,
+        )
+        if len(_clean_text(x)) > 20
+    ]
 
-        return {
-            "question_text": (
-                "Which of the following is a common use of Python?"
-            ),
-            "options": {
-                "A": "Data analysis",
-                "B": "Only hardware manufacturing",
-                "C": "Only database storage",
-                "D": "Only network cabling",
-            },
-            "correct_answer": "A",
-            "explanation": (
-                "Python is widely used for data analysis, "
-                "machine learning, automation and web development."
-            ),
-            "difficulty": difficulty,
-        }
+    if not sentences:
+
+        sentences = [
+            "the concepts discussed in the learning material"
+        ]
+
+    # Pick different material for different questions.
+    sentence = sentences[
+        (question_number - 1) % len(sentences)
+    ]
 
     # --------------------------------------------------------
-    # Generic fallback
+    # Create a safer fallback.
     # --------------------------------------------------------
-
-    first_sentence = re.split(
-        r"[.!?]",
-        context.strip(),
-    )[0].strip()
-
-    if not first_sentence:
-        first_sentence = "the provided learning material"
 
     return {
         "question_text": (
-            f"Which statement is most closely related to "
-            f"{first_sentence.lower()}?"
+            f"Which statement is supported by the "
+            f"learning material regarding: {sentence}?"
         ),
         "options": {
-            "A": "It is directly related to the learning material",
-            "B": "It is unrelated to the learning material",
-            "C": "It describes an unrelated physical object",
-            "D": "It describes an unrelated historical event",
+            "A": sentence,
+            "B": "The material provides no information about this topic.",
+            "C": "The topic refers only to an unrelated physical object.",
+            "D": "The topic describes an unrelated historical event.",
         },
         "correct_answer": "A",
         "explanation": (
-            "The correct answer is supported by the provided "
+            "Option A is supported directly by the provided "
             "learning material."
         ),
         "difficulty": difficulty,
@@ -362,18 +361,23 @@ def _fallback_mcq(
 def _build_prompt(
     context: str,
     difficulty: str,
+    question_number: int = 1,
 ) -> str:
-    """
-    Build a constrained FLAN-T5 prompt.
 
-    We explicitly request one-line output because FLAN-T5
-    sometimes omits options when given a complex format.
-    """
+    focus = QUESTION_FOCUSES[
+        (question_number - 1) % len(QUESTION_FOCUSES)
+    ]
 
     return f"""
-Create ONE multiple-choice question from the learning material below.
+Create ONE high-quality multiple-choice question from the
+learning material below.
+
+Question number: {question_number}
 
 Difficulty: {difficulty}
+
+Preferred question focus:
+{focus}
 
 Learning material:
 {context}
@@ -389,10 +393,18 @@ Answer: <A, B, C, or D>
 Explanation: <short explanation>
 
 Rules:
-- The question must be answerable using ONLY the learning material.
-- Provide exactly four different options.
-- Only one option must be correct.
-- Do not add any other text.
+
+- The question MUST be answerable using ONLY the learning material.
+- Do NOT use outside knowledge.
+- Make the question specific to the material.
+- Avoid generic questions such as "Which statement is related
+  to the learning material?"
+- Create four meaningful options.
+- Exactly ONE option must be correct.
+- The incorrect options must be plausible but contradicted by
+  or unsupported by the learning material.
+- Do not repeat the question wording.
+- Do not add any text outside the requested format.
 """.strip()
 
 
@@ -405,24 +417,32 @@ def _parse_mcq(
     difficulty: str,
 ) -> dict[str, Any]:
 
-    raw_output = _clean_text(raw_output)
+    raw_output = _clean_text(
+        raw_output
+    )
 
     # --------------------------------------------------------
     # Question
     # --------------------------------------------------------
 
     question_match = re.search(
-        r"Question\s*:\s*(.+?)(?=\s+A\s*[\.\):\-])",
+        r"Question\s*:\s*(.+?)"
+        r"(?=\s+A\s*[\.\):\-])",
         raw_output,
         flags=re.IGNORECASE,
     )
 
     if question_match:
+
         question = _clean_text(
             question_match.group(1)
         )
+
     else:
-        question = _extract_question(raw_output)
+
+        question = _extract_question(
+            raw_output
+        )
 
     # --------------------------------------------------------
     # Options
@@ -430,7 +450,12 @@ def _parse_mcq(
 
     options: dict[str, str] = {}
 
-    for letter in ["A", "B", "C", "D"]:
+    for letter in [
+        "A",
+        "B",
+        "C",
+        "D",
+    ]:
 
         option = _extract_option(
             raw_output,
@@ -472,30 +497,11 @@ def _parse_mcq(
 def generate_mcq(
     context: str,
     difficulty: str = "beginner",
+    question_number: int = 1,
 ) -> dict[str, Any]:
-    """
-    Generate an MCQ from supplied learning content.
-
-    Parameters
-    ----------
-    context:
-        Learning material from which the question should be
-        generated.
-
-    difficulty:
-        beginner / intermediate / advanced
-
-    Returns
-    -------
-    dict
-        Valid MCQ object.
-    """
-
-    # --------------------------------------------------------
-    # Validate input
-    # --------------------------------------------------------
 
     if not context or not context.strip():
+
         raise ValueError(
             "Learning content cannot be empty."
         )
@@ -503,25 +509,26 @@ def generate_mcq(
     difficulty = difficulty.lower().strip()
 
     if difficulty not in VALID_DIFFICULTIES:
+
         raise ValueError(
             "Difficulty must be one of: "
             "beginner, intermediate, advanced."
         )
 
-    # Limit extremely large documents.
     context = context.strip()[:6000]
 
     prompt = _build_prompt(
-        context,
-        difficulty,
+        context=context,
+        difficulty=difficulty,
+        question_number=question_number,
     )
-
-    # --------------------------------------------------------
-    # Try model multiple times
-    # --------------------------------------------------------
 
     last_error = ""
     last_output = ""
+
+    # --------------------------------------------------------
+    # Try multiple generations.
+    # --------------------------------------------------------
 
     for attempt in range(1, 4):
 
@@ -529,7 +536,8 @@ def generate_mcq(
 
             print(
                 f"MCQ generation attempt "
-                f"{attempt}/3"
+                f"{attempt}/3 "
+                f"(question {question_number})"
             )
 
             raw_output = _generate_text(
@@ -556,6 +564,7 @@ def generate_mcq(
             if valid:
 
                 if not parsed["explanation"]:
+
                     parsed["explanation"] = (
                         "The correct answer is supported "
                         "by the provided learning material."
@@ -579,7 +588,7 @@ def generate_mcq(
             )
 
     # --------------------------------------------------------
-    # Use fallback instead of crashing
+    # Safe fallback.
     # --------------------------------------------------------
 
     print(
@@ -594,9 +603,8 @@ def generate_mcq(
         f"Last model output: {last_output}"
     )
 
-    fallback = _fallback_mcq(
-        context,
-        difficulty,
+    return _fallback_mcq(
+        context=context,
+        difficulty=difficulty,
+        question_number=question_number,
     )
-
-    return fallback
