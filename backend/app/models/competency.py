@@ -75,13 +75,26 @@ class Competency(Base):
         cascade="all, delete-orphan",
     )
 
+    # Existing manually created question bank
     questions = relationship(
         "Question",
         back_populates="competency",
     )
 
+    # AI-generated questions from uploaded learning content
+    ai_generated_questions = relationship(
+        "AIGeneratedQuestion",
+        back_populates="competency",
+        cascade="all, delete-orphan",
+    )
+
     course_competencies = relationship(
         "CourseCompetency",
+        back_populates="competency",
+        cascade="all, delete-orphan",
+    )
+    recommendations = relationship(
+        "Recommendation",
         back_populates="competency",
         cascade="all, delete-orphan",
     )
@@ -120,10 +133,10 @@ class RoleCompetency(Base):
     )
 
     organizational_priority: Mapped[int] = mapped_column(
-    SmallInteger,
-    nullable=False,
-    default=1,
-)
+        SmallInteger,
+        nullable=False,
+        default=1,
+    )
 
     __table_args__ = (
         UniqueConstraint(
@@ -136,8 +149,8 @@ class RoleCompetency(Base):
             name="check_required_level",
         ),
         CheckConstraint(
-             "organizational_priority BETWEEN 1 AND 3",
-             name="check_organizational_priority",
+            "organizational_priority BETWEEN 1 AND 3",
+            name="check_organizational_priority",
         ),
     )
 
