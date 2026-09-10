@@ -103,28 +103,29 @@ export default function EmployeeDashboard({
 
   return (
     <div className="space-y-8 pb-16">
-      {/* Welcome Banner with Light Gradient Glow */}
-      <div className="relative rounded-3xl bg-gradient-to-br from-white via-indigo-50/25 to-sky-50/30 border border-slate-200/90 p-6 sm:p-8 shadow-xs overflow-hidden">
-        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-72 h-72 bg-gradient-to-br from-indigo-200/20 to-purple-200/20 rounded-full blur-3xl pointer-events-none" />
+      {/* Welcome Banner with Light Radiant Mesh Glow */}
+      <div className="relative rounded-3xl bg-gradient-to-br from-white via-indigo-50/30 to-purple-50/25 border border-indigo-100/80 p-6 sm:p-8 shadow-sm overflow-hidden backdrop-blur-md">
+        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-80 h-80 bg-gradient-to-br from-indigo-300/20 to-purple-300/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 -mb-8 w-60 h-60 bg-gradient-to-tr from-sky-200/20 to-emerald-200/15 rounded-full blur-2xl pointer-events-none" />
 
         <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-200 shadow-2xs">
+              <span className="text-xs font-bold text-indigo-700 bg-indigo-50/90 px-3 py-1 rounded-full border border-indigo-200/80 shadow-2xs">
                 Official Statistical System • MoSPI Capacity Engine
               </span>
               <span className="text-xs text-slate-500 font-medium">
                 ISO 9001:2015 Benchmark
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
               {t.welcomeBack}{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-indigo-800">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-700">
                 {data.employee.email.split("@")[0].replace(".", " ").toUpperCase()}
               </span>
             </h1>
             <p className="text-sm text-slate-600 max-w-2xl leading-relaxed">
-              {t.assignedRole} <span className="font-semibold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">{data.employee.role_name}</span>.{" "}
+              {t.assignedRole} <span className="font-semibold text-slate-900 bg-white/80 border border-slate-200/80 px-2.5 py-0.5 rounded-lg shadow-2xs">{data.employee.role_name}</span>.{" "}
               {t.welcomeDesc}
             </p>
           </div>
@@ -132,30 +133,29 @@ export default function EmployeeDashboard({
           <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={() => onOpenAssessment()}
-              className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-98 text-white font-semibold text-sm flex items-center gap-2 shadow-xs hover:shadow-md transition-all duration-150"
+              className="px-6 py-3 rounded-2xl btn-gradient-primary active:scale-95 text-white font-bold text-sm flex items-center gap-2 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all duration-200"
             >
-              <Zap className="w-4 h-4 fill-current" />
+              <Zap className="w-4 h-4 fill-current text-amber-300" />
               {t.takeAssessment}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Interactive Clickable Stat Cards */}
-      {/* Interactive Clickable Stat Cards */}
+      {/* Interactive Clickable Stat Cards with Pleasant Soft Gradients */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Required Skills */}
         <div
           onClick={() => handleStatCardClick("all")}
-          className={`rounded-2xl p-3.5 sm:p-5 border transition-all duration-200 cursor-pointer ${
+          className={`rounded-2xl p-4 sm:p-5 border transition-all duration-200 cursor-pointer ${
             cardFilter === "all"
-              ? "bg-white border-indigo-400 shadow-sm ring-2 ring-indigo-500/20"
-              : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm hover:-translate-y-0.5"
+              ? "bg-gradient-to-br from-white to-blue-50/60 border-blue-400 shadow-md ring-2 ring-blue-500/20"
+              : "bg-gradient-to-br from-white to-slate-50/60 border-slate-200/90 hover:border-blue-300 hover:shadow-md hover:-translate-y-1"
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">{t.requiredSkills}</span>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-2xs">
+            <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">{t.requiredSkills}</span>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-2xs border border-blue-100">
               <Layers className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
@@ -164,22 +164,22 @@ export default function EmployeeDashboard({
           </div>
           <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
             <span className="truncate">{t.requiredSkillsDesc}</span>
-            <span className="text-[9px] sm:text-[10px] text-indigo-600 font-semibold hidden sm:inline">Show all</span>
+            <span className="text-[9px] sm:text-[10px] text-indigo-600 font-bold hidden sm:inline">Show all</span>
           </div>
         </div>
 
         {/* Active Gaps */}
         <div
           onClick={() => handleStatCardClick("gaps")}
-          className={`rounded-2xl p-3.5 sm:p-5 border transition-all duration-200 cursor-pointer ${
+          className={`rounded-2xl p-4 sm:p-5 border transition-all duration-200 cursor-pointer ${
             cardFilter === "gaps"
-              ? "bg-amber-50/40 border-amber-400 shadow-sm ring-2 ring-amber-500/20"
-              : "bg-white border-slate-200 hover:border-amber-300 hover:shadow-sm hover:-translate-y-0.5"
+              ? "bg-gradient-to-br from-white to-amber-50/70 border-amber-400 shadow-md ring-2 ring-amber-500/20"
+              : "bg-gradient-to-br from-white to-amber-50/30 border-slate-200/90 hover:border-amber-300 hover:shadow-md hover:-translate-y-1"
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] sm:text-xs font-semibold text-amber-700 uppercase tracking-wider">{t.activeGaps}</span>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-2xs">
+            <span className="text-[10px] sm:text-xs font-bold text-amber-700 uppercase tracking-wider">{t.activeGaps}</span>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-2xs border border-amber-100">
               <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
@@ -188,22 +188,22 @@ export default function EmployeeDashboard({
           </div>
           <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
             <span className="truncate">{t.activeGapsDesc}</span>
-            <span className="text-[9px] sm:text-[10px] text-amber-700 font-semibold hidden sm:inline">Filter gaps</span>
+            <span className="text-[9px] sm:text-[10px] text-amber-700 font-bold hidden sm:inline">Filter gaps</span>
           </div>
         </div>
 
         {/* Mastered Skills */}
         <div
           onClick={() => handleStatCardClick("mastered")}
-          className={`rounded-2xl p-3.5 sm:p-5 border transition-all duration-200 cursor-pointer ${
+          className={`rounded-2xl p-4 sm:p-5 border transition-all duration-200 cursor-pointer ${
             cardFilter === "mastered"
-              ? "bg-emerald-50/40 border-emerald-400 shadow-sm ring-2 ring-emerald-500/20"
-              : "bg-white border-slate-200 hover:border-emerald-300 hover:shadow-sm hover:-translate-y-0.5"
+              ? "bg-gradient-to-br from-white to-emerald-50/70 border-emerald-400 shadow-md ring-2 ring-emerald-500/20"
+              : "bg-gradient-to-br from-white to-emerald-50/30 border-slate-200/90 hover:border-emerald-300 hover:shadow-md hover:-translate-y-1"
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] sm:text-xs font-semibold text-emerald-700 uppercase tracking-wider">{t.masteredSkills}</span>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-2xs">
+            <span className="text-[10px] sm:text-xs font-bold text-emerald-700 uppercase tracking-wider">{t.masteredSkills}</span>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-2xs border border-emerald-100">
               <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
@@ -212,18 +212,18 @@ export default function EmployeeDashboard({
           </div>
           <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
             <span className="truncate">{t.masteredSkillsDesc}</span>
-            <span className="text-[9px] sm:text-[10px] text-emerald-700 font-semibold hidden sm:inline">Filter</span>
+            <span className="text-[9px] sm:text-[10px] text-emerald-700 font-bold hidden sm:inline">Filter</span>
           </div>
         </div>
 
         {/* Learning Courses */}
         <div
           onClick={() => scrollToSection("learning-pathways")}
-          className="rounded-2xl bg-white border border-slate-200 p-3.5 sm:p-5 hover:border-purple-300 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+          className="rounded-2xl bg-gradient-to-br from-white to-purple-50/30 border border-slate-200/90 p-4 sm:p-5 hover:border-purple-300 hover:shadow-md hover:-translate-y-1 transition-all duration-200 cursor-pointer"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] sm:text-xs font-semibold text-purple-700 uppercase tracking-wider">{t.learningCourses}</span>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shadow-2xs">
+            <span className="text-[10px] sm:text-xs font-bold text-purple-700 uppercase tracking-wider">{t.learningCourses}</span>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shadow-2xs border border-purple-100">
               <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
@@ -232,7 +232,7 @@ export default function EmployeeDashboard({
           </div>
           <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
             <span className="truncate">{t.learningCoursesDesc}</span>
-            <span className="text-[9px] sm:text-[10px] text-purple-600 font-semibold hidden sm:inline">Courses</span>
+            <span className="text-[9px] sm:text-[10px] text-purple-600 font-bold hidden sm:inline">Courses</span>
           </div>
         </div>
       </div>
@@ -265,39 +265,39 @@ export default function EmployeeDashboard({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Priority Gap Engine */}
         <div className="lg:col-span-7 space-y-6">
-          <div className="rounded-2xl bg-white border border-slate-200 p-6 shadow-xs">
-            <div className="flex items-center justify-between mb-4">
+          <div className="pleasant-card rounded-3xl p-6 sm:p-7">
+            <div className="flex items-center justify-between mb-5">
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <h2 className="text-base sm:text-lg font-extrabold text-slate-900 flex items-center gap-2">
                     <Target className="w-5 h-5 text-amber-600" />
                     {t.skillGapEngineTitle}
                   </h2>
                   <button
                     onClick={() => setShowFormulaHelp(!showFormulaHelp)}
-                    className="text-slate-400 hover:text-slate-600"
+                    className="text-slate-400 hover:text-slate-600 transition-colors"
                     title="Explain Formula"
                   >
                     <HelpCircle className="w-4 h-4" />
                   </button>
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
                   {t.skillGapEngineFormula}
                 </p>
               </div>
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800">
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/90 text-amber-800 shadow-2xs">
                 {data.priority_gaps.length} {t.actionableGaps}
               </span>
             </div>
 
             {/* Formula Explanation Banner */}
             {showFormulaHelp && (
-              <div className="mb-4 p-4 rounded-xl bg-amber-50/70 border border-amber-200 text-xs text-amber-900 space-y-1.5 animate-in fade-in">
-                <div className="font-bold flex items-center gap-1.5">
+              <div className="mb-4 p-4 rounded-2xl bg-amber-50/80 border border-amber-200/90 text-xs text-amber-950 space-y-1.5 animate-in fade-in">
+                <div className="font-bold flex items-center gap-1.5 text-amber-900">
                   <SlidersHorizontal className="w-3.5 h-3.5" />
                   Deterministic Ranking Formula:
                 </div>
-                <p className="text-slate-700 leading-relaxed font-mono">
+                <p className="text-slate-800 leading-relaxed font-mono bg-white/70 p-2 rounded-xl border border-amber-200/50">
                   Priority = (Gap × 2) + (Criticality Weight × 3) + Target Level
                 </p>
                 <p className="text-slate-600 text-[11px]">
@@ -313,57 +313,57 @@ export default function EmployeeDashboard({
                   <div
                     key={gap.competency_id}
                     onClick={() => setSelectedCompetency(gap.competency_name)}
-                    className={`p-4 rounded-xl border transition-all cursor-pointer ${
+                    className={`p-4 sm:p-5 rounded-2xl border transition-all duration-200 cursor-pointer ${
                       isSelected
-                        ? "bg-indigo-50/70 border-indigo-300 shadow-xs ring-1 ring-indigo-400/30"
-                        : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/60"
+                        ? "bg-gradient-to-r from-indigo-50/90 via-purple-50/40 to-white border-indigo-300 shadow-sm ring-2 ring-indigo-400/25"
+                        : "bg-white/90 border-slate-200/90 hover:border-indigo-200 hover:bg-slate-50/80 hover:shadow-xs"
                     }`}
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700">
                           #{idx + 1}
                         </span>
-                        <span className="font-semibold text-slate-900 text-sm">
+                        <span className="font-bold text-slate-900 text-sm sm:text-base">
                           {gap.competency_name}
                         </span>
                         {gap.is_critical && (
-                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700">
+                          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700 shadow-2xs">
                             {t.critical}
                           </span>
                         )}
                       </div>
                       <div className="text-xs text-slate-600">
-                        {t.priorityScore} <span className="text-amber-700 font-bold">{gap.priority_score}</span>
+                        {t.priorityScore} <span className="text-amber-700 font-extrabold">{gap.priority_score}</span>
                       </div>
                     </div>
 
                     {/* Level comparison visual bars */}
-                    <div className="flex items-center gap-3 mt-3">
+                    <div className="flex items-center gap-3 sm:gap-4 mt-3">
                       <div className="flex-1">
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="text-slate-600">
+                        <div className="flex justify-between text-xs mb-1.5">
+                          <span className="text-slate-600 font-medium">
                             {t.currentLevel} <strong className="text-slate-900">Level {gap.current_level} ({gap.current_level_label})</strong>
                           </span>
-                          <span className="text-indigo-700 font-semibold">
+                          <span className="text-indigo-700 font-bold">
                             {t.targetLevel} <strong>Level {gap.required_level} ({gap.required_level_label})</strong>
                           </span>
                         </div>
                         <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-2xs">
                           <div
-                            className="bg-indigo-600 h-full rounded-full transition-all"
+                            className="bg-gradient-to-r from-indigo-500 to-indigo-600 h-full rounded-full transition-all"
                             style={{ width: `${(gap.current_level / 5) * 100}%` }}
                             title={`Current Level ${gap.current_level}`}
                           />
                           <div
-                            className="bg-amber-400 h-full transition-all border-l border-white"
+                            className="bg-gradient-to-r from-amber-400 to-amber-500 h-full transition-all border-l border-white/60"
                             style={{ width: `${(gap.gap / 5) * 100}%` }}
                             title={`Deficit: ${gap.gap} Level(s)`}
                           />
                         </div>
                       </div>
-                      <div className="text-right flex items-center gap-2">
-                        <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-200">
+                      <div className="text-right flex items-center gap-2 shrink-0">
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 text-amber-800 border border-amber-200/90 shadow-2xs">
                           -{gap.gap} {t.levelGap}
                         </span>
                         <button
@@ -371,10 +371,10 @@ export default function EmployeeDashboard({
                             e.stopPropagation();
                             onOpenAssessment();
                           }}
-                          className="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200"
+                          className="p-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-xs hover:shadow-md hover:scale-105 active:scale-95 transition-all"
                           title="Assess Competency"
                         >
-                          <Zap className="w-3.5 h-3.5 fill-current" />
+                          <Zap className="w-3.5 h-3.5 fill-current text-amber-300" />
                         </button>
                       </div>
                     </div>
@@ -393,40 +393,40 @@ export default function EmployeeDashboard({
 
         {/* Right Column: Recommendations Feed */}
         <div id="learning-pathways" className="lg:col-span-5 space-y-6">
-          <div className="rounded-2xl bg-white border border-slate-200 p-6 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+          <div className="pleasant-card rounded-3xl p-6 sm:p-7">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5">
               <div>
-                <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-extrabold text-slate-900 flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-indigo-600" />
                   {t.learningPathwaysTitle}
                 </h2>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
                   {t.learningPathwaysSubtitle}
                 </p>
               </div>
 
               {/* Provider Filter */}
-              <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+              <div className="flex items-center gap-1 bg-slate-100/90 p-0.5 rounded-xl border border-slate-200/80 text-xs">
                 <button
                   onClick={() => setProviderFilter("all")}
-                  className={`px-2 py-0.5 rounded-md font-medium text-[11px] ${
-                    providerFilter === "all" ? "bg-white text-indigo-700 shadow-2xs font-semibold" : "text-slate-600"
+                  className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all ${
+                    providerFilter === "all" ? "bg-white text-indigo-700 shadow-2xs" : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
                   All
                 </button>
                 <button
                   onClick={() => setProviderFilter("igot")}
-                  className={`px-2 py-0.5 rounded-md font-medium text-[11px] ${
-                    providerFilter === "igot" ? "bg-white text-indigo-700 shadow-2xs font-semibold" : "text-slate-600"
+                  className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all ${
+                    providerFilter === "igot" ? "bg-white text-indigo-700 shadow-2xs" : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
                   iGOT
                 </button>
                 <button
                   onClick={() => setProviderFilter("tpac")}
-                  className={`px-2 py-0.5 rounded-md font-medium text-[11px] ${
-                    providerFilter === "tpac" ? "bg-white text-indigo-700 shadow-2xs font-semibold" : "text-slate-600"
+                  className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all ${
+                    providerFilter === "tpac" ? "bg-white text-indigo-700 shadow-2xs" : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
                   TPAC
@@ -438,27 +438,27 @@ export default function EmployeeDashboard({
               {filteredRecommendations.slice(0, 6).map((rec, i) => (
                 <div
                   key={`${rec.course_id || 'rec'}-${i}`}
-                  className="p-4 rounded-xl bg-white border border-slate-200 hover:border-slate-300 hover:shadow-xs transition-all group"
+                  className="p-4 sm:p-5 rounded-2xl bg-white/90 border border-slate-200/90 hover:border-purple-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-purple-50 border border-purple-200 text-purple-700 uppercase">
+                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-purple-50 border border-purple-200/80 text-purple-700 uppercase tracking-wide">
                           {rec.provider || "iGOT Karmayogi"}
                         </span>
-                        <span className="text-[11px] text-indigo-600 font-medium">
+                        <span className="text-[11px] text-indigo-600 font-semibold">
                           {t.targets} <strong>{rec.competency_name}</strong>
                         </span>
                         {rec.course_level && (
-                          <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                          <span className="text-[10px] text-slate-500 bg-slate-100/90 px-2 py-0.5 rounded-md font-medium">
                             {rec.course_level}
                           </span>
                         )}
                       </div>
-                      <h3 className="text-sm font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                      <h3 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
                         {rec.course_title}
                       </h3>
-                      <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
                         {rec.reason || `Targets Level ${rec.course_target_level} for ${rec.competency_name}.`}
                       </p>
                     </div>
@@ -481,7 +481,7 @@ export default function EmployeeDashboard({
                     </div>
                     <button
                       onClick={() => onOpenAssessment(rec.course_id)}
-                      className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 active:scale-98 text-indigo-700 text-xs font-semibold flex items-center gap-1.5 transition-all border border-indigo-200 shadow-2xs"
+                      className="px-3.5 py-1.5 rounded-xl btn-gradient-primary text-white text-xs font-bold flex items-center gap-1.5 shadow-xs hover:shadow-md transition-all active:scale-95"
                     >
                       {t.launchQuiz}
                       <ChevronRight className="w-3.5 h-3.5" />
@@ -501,14 +501,14 @@ export default function EmployeeDashboard({
       </div>
 
       {/* Role Competency Framework Matrix with Interactive Search & Filter Bar */}
-      <div id="benchmark-matrix" className="rounded-3xl bg-white border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
+      <div id="benchmark-matrix" className="pleasant-card rounded-3xl p-6 sm:p-8 space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 flex items-center gap-2">
               <Award className="w-5 h-5 text-indigo-600" />
               {t.benchmarkMatrixTitle}
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
               {t.benchmarkMatrixDesc}
             </p>
           </div>

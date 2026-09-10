@@ -498,7 +498,7 @@ export default function ThreeSkillGalaxy({
   }, [activeSkill, onSelectSkill]);
 
   return (
-    <div className="relative w-full h-[320px] sm:h-[430px] rounded-2xl overflow-hidden bg-gradient-to-b from-indigo-50/40 via-white to-slate-50/60 border border-slate-200 shadow-sm flex items-center justify-center group select-none touch-none">
+    <div className="relative w-full h-[320px] sm:h-[430px] rounded-3xl overflow-hidden bg-gradient-to-b from-[#060814] via-[#090e24] to-[#060814] border border-slate-800/90 shadow-xl flex items-center justify-center group select-none touch-none">
       {/* 3D WebGL Canvas */}
       <div
         ref={containerRef}
@@ -514,28 +514,28 @@ export default function ThreeSkillGalaxy({
             top: Math.max(hoveredNode.y - 45, 16),
           }}
         >
-          <div className="p-3.5 rounded-2xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-xl text-xs space-y-2 min-w-48">
+          <div className="p-3.5 rounded-2xl bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 shadow-2xl text-xs space-y-2 min-w-48 text-white">
             <div className="flex items-center justify-between gap-2">
-              <span className="font-bold text-slate-900 text-sm">{hoveredNode.name}</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200">
+              <span className="font-bold text-white text-sm">{hoveredNode.name}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-950/80 text-indigo-300 font-semibold border border-indigo-500/40">
                 {hoveredNode.domain}
               </span>
             </div>
             <div className="space-y-1">
-              <div className="flex justify-between text-[11px] text-slate-600">
+              <div className="flex justify-between text-[11px] text-slate-300">
                 <span>Proficiency Level</span>
-                <strong className="text-slate-900">L{hoveredNode.level} / L{hoveredNode.required}</strong>
+                <strong className="text-white">L{hoveredNode.level} / L{hoveredNode.required}</strong>
               </div>
-              <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+              <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all ${
-                    hoveredNode.level >= hoveredNode.required ? "bg-emerald-500" : "bg-amber-500"
+                    hoveredNode.level >= hoveredNode.required ? "bg-emerald-400" : "bg-amber-400"
                   }`}
                   style={{ width: `${(hoveredNode.level / hoveredNode.required) * 100}%` }}
                 />
               </div>
             </div>
-            <div className="flex items-center justify-between text-[10px] text-indigo-600 font-medium pt-1 border-t border-slate-100">
+            <div className="flex items-center justify-between text-[10px] text-indigo-300 font-medium pt-1 border-t border-slate-800">
               <span className="flex items-center gap-1">
                 <Eye className="w-3 h-3" /> Focus Node
               </span>
@@ -547,14 +547,14 @@ export default function ThreeSkillGalaxy({
 
       {/* Top Left Title & Telemetry Badge */}
       <div className="absolute top-4 left-4 z-10 pointer-events-none">
-        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/95 border border-slate-200 shadow-xs backdrop-blur-md">
-          <Sparkles className="w-3.5 h-3.5 text-indigo-600 animate-pulse" />
-          <span className="text-xs font-bold text-slate-800 tracking-wide">
+        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/85 border border-slate-700/80 shadow-md backdrop-blur-xl">
+          <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+          <span className="text-xs font-bold text-white tracking-wide">
             {t.topographyTitle}
           </span>
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
         </div>
-        <p className="text-[11px] text-slate-500 mt-1.5 pl-1 hidden sm:block">
+        <p className="text-[11px] text-slate-400 mt-1.5 pl-1 hidden sm:block">
           Drag to orbit • Click node to zoom & inspect
         </p>
       </div>
@@ -563,17 +563,17 @@ export default function ThreeSkillGalaxy({
       <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
         <button
           onClick={() => setIsRotating(!isRotating)}
-          className="p-2 rounded-xl bg-white/95 hover:bg-white border border-slate-200 text-slate-700 shadow-xs hover:shadow-sm transition-all"
+          className="p-2 rounded-xl bg-slate-900/85 hover:bg-slate-800 border border-slate-700/80 text-slate-200 shadow-md hover:shadow-lg transition-all"
           title={isRotating ? "Pause Rotation" : "Play Rotation"}
         >
-          {isRotating ? <Pause className="w-3.5 h-3.5 text-indigo-600" /> : <Play className="w-3.5 h-3.5 text-slate-600" />}
+          {isRotating ? <Pause className="w-3.5 h-3.5 text-indigo-400" /> : <Play className="w-3.5 h-3.5 text-slate-300" />}
         </button>
         <button
           onClick={() => resetCameraRef.current()}
-          className="p-2 rounded-xl bg-white/95 hover:bg-white border border-slate-200 text-slate-700 shadow-xs hover:shadow-sm transition-all flex items-center gap-1 text-xs"
+          className="p-2 rounded-xl bg-slate-900/85 hover:bg-slate-800 border border-slate-700/80 text-slate-200 shadow-md hover:shadow-lg transition-all flex items-center gap-1 text-xs"
           title="Reset Camera View"
         >
-          <RotateCcw className="w-3.5 h-3.5 text-slate-600" />
+          <RotateCcw className="w-3.5 h-3.5 text-slate-300" />
         </button>
       </div>
 
@@ -584,8 +584,8 @@ export default function ThreeSkillGalaxy({
             onClick={() => setSelectedDomain("all")}
             className={`text-[11px] px-2.5 py-1 rounded-lg font-medium transition-all ${
               selectedDomain === "all"
-                ? "bg-slate-900 text-white font-semibold shadow-xs"
-                : "bg-white/90 text-slate-700 hover:bg-white border border-slate-200"
+                ? "bg-white text-slate-900 font-bold shadow-md"
+                : "bg-slate-900/80 text-slate-300 hover:bg-slate-800 border border-slate-700/60"
             }`}
           >
             {t.allDomains}
@@ -594,47 +594,47 @@ export default function ThreeSkillGalaxy({
             onClick={() => setSelectedDomain("statistical")}
             className={`text-[11px] px-2.5 py-1 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
               selectedDomain === "statistical"
-                ? "bg-sky-600 text-white font-semibold shadow-xs"
-                : "bg-white/90 text-slate-700 hover:bg-white border border-slate-200"
+                ? "bg-sky-500 text-white font-bold shadow-md shadow-sky-500/30"
+                : "bg-slate-900/80 text-slate-300 hover:bg-slate-800 border border-slate-700/60"
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-sky-500" /> {t.statDomain}
+            <span className="w-2 h-2 rounded-full bg-sky-400" /> {t.statDomain}
           </button>
           <button
             onClick={() => setSelectedDomain("technical")}
             className={`text-[11px] px-2.5 py-1 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
               selectedDomain === "technical"
-                ? "bg-indigo-600 text-white font-semibold shadow-xs"
-                : "bg-white/90 text-slate-700 hover:bg-white border border-slate-200"
+                ? "bg-indigo-600 text-white font-bold shadow-md shadow-indigo-500/30"
+                : "bg-slate-900/80 text-slate-300 hover:bg-slate-800 border border-slate-700/60"
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-indigo-500" /> {t.techDomain}
+            <span className="w-2 h-2 rounded-full bg-indigo-400" /> {t.techDomain}
           </button>
           <button
             onClick={() => setSelectedDomain("domain")}
             className={`text-[11px] px-2.5 py-1 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
               selectedDomain === "domain"
-                ? "bg-amber-600 text-white font-semibold shadow-xs"
-                : "bg-white/90 text-slate-700 hover:bg-white border border-slate-200"
+                ? "bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/30"
+                : "bg-slate-900/80 text-slate-300 hover:bg-slate-800 border border-slate-700/60"
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-amber-500" /> {t.domainDomain}
+            <span className="w-2 h-2 rounded-full bg-amber-400" /> {t.domainDomain}
           </button>
           <button
             onClick={() => setSelectedDomain("soft skills")}
             className={`text-[11px] px-2.5 py-1 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
               selectedDomain === "soft skills"
-                ? "bg-emerald-600 text-white font-semibold shadow-xs"
-                : "bg-white/90 text-slate-700 hover:bg-white border border-slate-200"
+                ? "bg-emerald-500 text-white font-bold shadow-md shadow-emerald-500/30"
+                : "bg-slate-900/80 text-slate-300 hover:bg-slate-800 border border-slate-700/60"
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-emerald-500" /> {t.softDomain}
+            <span className="w-2 h-2 rounded-full bg-emerald-400" /> {t.softDomain}
           </button>
         </div>
 
-        <div className="text-[11px] text-slate-500 bg-white/95 px-3 py-1 rounded-xl border border-slate-200 backdrop-blur-md hidden sm:flex items-center gap-1.5 shadow-xs">
-          <Compass className="w-3.5 h-3.5 text-indigo-600" />
-          <span>Selected: <strong className="text-slate-900">{activeSkill}</strong></span>
+        <div className="text-[11px] text-slate-300 bg-slate-900/85 px-3 py-1 rounded-xl border border-slate-700/80 backdrop-blur-xl hidden sm:flex items-center gap-1.5 shadow-md">
+          <Compass className="w-3.5 h-3.5 text-indigo-400" />
+          <span>Selected: <strong className="text-indigo-300">{activeSkill}</strong></span>
         </div>
       </div>
     </div>

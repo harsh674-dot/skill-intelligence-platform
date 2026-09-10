@@ -88,76 +88,76 @@ export default function Navbar({
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
+    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/80 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Brand & Emblem */}
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-600 text-white shadow-xs shrink-0">
+            <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-500/25 shrink-0 transition-transform hover:scale-105">
               <BrainCircuit className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
               <div className="flex items-center gap-1.5 sm:gap-2">
-                <span className="text-sm sm:text-base font-bold tracking-tight text-slate-900">
+                <span className="text-sm sm:text-base font-extrabold tracking-tight text-slate-900">
                   {t.brandTitle}
                 </span>
-                <span className="hidden xs:inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 tracking-wide">
+                <span className="hidden xs:inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200/80 text-indigo-700 tracking-wide shadow-2xs">
                   {t.sihBadge}
                 </span>
               </div>
-              <p className="hidden sm:block text-xs text-slate-500">
+              <p className="hidden sm:block text-xs text-slate-500 font-medium">
                 {t.brandSubtitle}
               </p>
             </div>
           </div>
 
           {/* Center Tabs */}
-          <nav className="hidden md:flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
+          <nav className="hidden md:flex items-center gap-1 bg-slate-100/90 p-1 rounded-2xl border border-slate-200/70 shadow-2xs">
             <button
               onClick={() => onSelectTab("employee")}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 ${
                 currentTab === "employee"
-                  ? "bg-white text-indigo-700 shadow-xs border border-slate-200 font-semibold"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                  ? "bg-white text-indigo-700 shadow-xs border border-slate-200/80 font-bold"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/70"
               }`}
             >
-              <BarChart3 className="w-4 h-4 text-indigo-600" />
+              <BarChart3 className={`w-4 h-4 ${currentTab === "employee" ? "text-indigo-600" : "text-slate-400"}`} />
               {t.tabEmployee}
             </button>
 
             <button
               onClick={() => onSelectTab("assessments")}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 ${
                 currentTab === "assessments"
-                  ? "bg-white text-indigo-700 shadow-xs border border-slate-200 font-semibold"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                  ? "bg-white text-indigo-700 shadow-xs border border-slate-200/80 font-bold"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/70"
               }`}
             >
-              <GraduationCap className="w-4 h-4 text-indigo-600" />
+              <GraduationCap className={`w-4 h-4 ${currentTab === "assessments" ? "text-indigo-600" : "text-slate-400"}`} />
               {t.tabAssessments}
             </button>
 
             <button
               onClick={() => onSelectTab("rag_studio")}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 ${
                 currentTab === "rag_studio"
-                  ? "bg-white text-purple-700 shadow-xs border border-slate-200 font-semibold"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                  ? "bg-white text-purple-700 shadow-xs border border-slate-200/80 font-bold"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/70"
               }`}
             >
-              <Sparkles className="w-4 h-4 text-purple-600" />
+              <Sparkles className={`w-4 h-4 ${currentTab === "rag_studio" ? "text-purple-600" : "text-slate-400"}`} />
               {t.tabRagStudio}
             </button>
 
             <button
               onClick={() => onSelectTab("admin")}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 ${
                 currentTab === "admin"
-                  ? "bg-white text-amber-700 shadow-xs border border-slate-200 font-semibold"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                  ? "bg-white text-amber-700 shadow-xs border border-slate-200/80 font-bold"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/70"
               }`}
             >
-              <ShieldAlert className="w-4 h-4 text-amber-600" />
+              <ShieldAlert className={`w-4 h-4 ${currentTab === "admin" ? "text-amber-600" : "text-slate-400"}`} />
               {t.tabAdmin}
             </button>
           </nav>
@@ -292,53 +292,53 @@ export default function Navbar({
       </div>
 
       {/* Sleek Mobile Bottom Navigation Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-lg px-2 py-1.5 flex items-center justify-around">
+      <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/90 backdrop-blur-xl border-t border-slate-200/80 shadow-[0_-4px_24px_rgba(0,0,0,0.04)] px-3 py-2 flex items-center justify-around">
         <button
           onClick={() => onSelectTab("employee")}
-          className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-xl transition-all ${
+          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all duration-200 ${
             currentTab === "employee"
-              ? "text-indigo-600 font-bold"
+              ? "text-indigo-600 font-bold bg-indigo-50/80 shadow-2xs"
               : "text-slate-500 hover:text-slate-800"
           }`}
         >
           <BarChart3 className="w-5 h-5" />
-          <span className="text-[10px]">{t.tabEmployee}</span>
+          <span className="text-[10px] tracking-tight">{t.tabEmployee}</span>
         </button>
 
         <button
           onClick={() => onSelectTab("assessments")}
-          className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-xl transition-all ${
+          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all duration-200 ${
             currentTab === "assessments"
-              ? "text-indigo-600 font-bold"
+              ? "text-indigo-600 font-bold bg-indigo-50/80 shadow-2xs"
               : "text-slate-500 hover:text-slate-800"
           }`}
         >
           <GraduationCap className="w-5 h-5" />
-          <span className="text-[10px]">{t.tabAssessments}</span>
+          <span className="text-[10px] tracking-tight">{t.tabAssessments}</span>
         </button>
 
         <button
           onClick={() => onSelectTab("rag_studio")}
-          className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-xl transition-all ${
+          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all duration-200 ${
             currentTab === "rag_studio"
-              ? "text-purple-600 font-bold"
+              ? "text-purple-600 font-bold bg-purple-50/80 shadow-2xs"
               : "text-slate-500 hover:text-slate-800"
           }`}
         >
           <Sparkles className="w-5 h-5" />
-          <span className="text-[10px]">{t.tabRagStudio}</span>
+          <span className="text-[10px] tracking-tight">{t.tabRagStudio}</span>
         </button>
 
         <button
           onClick={() => onSelectTab("admin")}
-          className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-xl transition-all ${
+          className={`flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all duration-200 ${
             currentTab === "admin"
-              ? "text-amber-600 font-bold"
+              ? "text-amber-600 font-bold bg-amber-50/80 shadow-2xs"
               : "text-slate-500 hover:text-slate-800"
           }`}
         >
           <ShieldAlert className="w-5 h-5" />
-          <span className="text-[10px]">{t.tabAdmin}</span>
+          <span className="text-[10px] tracking-tight">{t.tabAdmin}</span>
         </button>
       </div>
     </header>

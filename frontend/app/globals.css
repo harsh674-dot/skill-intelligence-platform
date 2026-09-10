@@ -4,7 +4,7 @@
   --bg-primary: #f8fafc;
   --bg-secondary: #ffffff;
   --bg-card: #ffffff;
-  --bg-card-hover: #f1f5f9;
+  --bg-card-hover: #f8fafc;
 
   --border-subtle: #e2e8f0;
   --border-card: #e2e8f0;
@@ -23,7 +23,13 @@
 }
 
 body {
-  background-color: var(--bg-primary);
+  background-color: #f8fafc;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.06) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.05) 0px, transparent 45%),
+    radial-gradient(at 50% 50%, rgba(14, 165, 233, 0.03) 0px, transparent 60%),
+    radial-gradient(at 80% 100%, rgba(245, 158, 11, 0.04) 0px, transparent 50%);
+  background-attachment: fixed;
   color: var(--text-main);
   font-family: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   overflow-x: hidden;
@@ -31,96 +37,106 @@ body {
 }
 
 /* -------------------------------------------------------------
-   CLEAN SAAS PANELS & SHADOWS
+   PLEASANT FROSTED PANELS & AURA SHADOWS
    ------------------------------------------------------------- */
 
+.pleasant-card {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pleasant-card:hover {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(199, 210, 254, 0.8);
+  box-shadow: 0 12px 32px -4px rgba(99, 102, 241, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.03);
+  transform: translateY(-2px);
+}
+
 .glass-panel {
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
   border: 1px solid #e2e8f0;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .glass-panel:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
-}
-
-.glass-panel-amber:hover {
-  border-color: #fcd34d;
-}
-
-.glass-panel-emerald:hover {
-  border-color: #6ee7b7;
+  border-color: #c7d2fe;
+  box-shadow: 0 8px 24px -4px rgba(99, 102, 241, 0.08);
 }
 
 /* -------------------------------------------------------------
-   MODERN ACCENT BUTTONS
+   MODERN ACCENT GRADIENT BUTTONS
    ------------------------------------------------------------- */
 
-.btn-3d-cyan {
-  background-color: #4f46e5;
+.btn-gradient-primary {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 60%, #4338ca 100%);
   color: #ffffff;
   font-weight: 600;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  transition: all 0.15s ease-in-out;
+  box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.3);
+  transition: all 0.2s ease-in-out;
 }
 
-.btn-3d-cyan:hover {
-  background-color: #4338ca;
-  box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.25);
+.btn-gradient-primary:hover {
+  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 60%, #3730a3 100%);
+  box-shadow: 0 6px 20px 0 rgba(99, 102, 241, 0.45);
   transform: translateY(-1px);
 }
 
-.btn-3d-cyan:active {
-  background-color: #3730a3;
+.btn-gradient-primary:active {
   transform: translateY(0);
 }
 
-.btn-3d-violet {
-  background-color: #7c3aed;
+.btn-gradient-violet {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 60%, #6d28d9 100%);
   color: #ffffff;
   font-weight: 600;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  transition: all 0.15s ease-in-out;
+  box-shadow: 0 4px 14px 0 rgba(124, 58, 237, 0.3);
+  transition: all 0.2s ease-in-out;
 }
 
-.btn-3d-violet:hover {
-  background-color: #6d28d9;
-  box-shadow: 0 4px 6px -1px rgba(124, 58, 237, 0.25);
+.btn-gradient-violet:hover {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 60%, #5b21b6 100%);
+  box-shadow: 0 6px 20px 0 rgba(124, 58, 237, 0.45);
   transform: translateY(-1px);
 }
 
-.btn-3d-violet:active {
-  background-color: #5b21b6;
-  transform: translateY(0);
-}
-
 /* -------------------------------------------------------------
-   CLEAN BACKGROUND
+   SUBTLE SHIMMER & FLOAT ANIMATIONS
    ------------------------------------------------------------- */
 
-.cyber-grid {
-  /* Clean subtle dot texture */
-  background-size: 24px 24px;
-  background-image: radial-gradient(circle, #e2e8f0 1px, transparent 1px);
-}
-
-/* -------------------------------------------------------------
-   SUBTLE ANIMATIONS
-   ------------------------------------------------------------- */
-
-@keyframes subtle-float {
+@keyframes gentle-pulse {
   0%, 100% {
-    transform: translateY(0px);
+    opacity: 1;
+    transform: scale(1);
   }
   50% {
-    transform: translateY(-4px);
+    opacity: 0.85;
+    transform: scale(1.02);
   }
 }
 
-.animate-float {
-  animation: subtle-float 4s ease-in-out infinite;
+.animate-gentle-pulse {
+  animation: gentle-pulse 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer-badge {
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.08) 0%, rgba(99, 102, 241, 0.2) 50%, rgba(99, 102, 241, 0.08) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 3s infinite;
 }
 
 /* -------------------------------------------------------------
@@ -128,12 +144,12 @@ body {
    ------------------------------------------------------------- */
 
 ::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -143,4 +159,12 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

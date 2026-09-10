@@ -186,9 +186,9 @@ export default function JudgeTourGuide({
       <div className="fixed bottom-16 md:bottom-6 right-3 md:right-6 z-40">
         <button
           onClick={() => setIsCollapsed(false)}
-          className="bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 px-3.5 py-2 rounded-xl flex items-center gap-2 text-xs font-semibold shadow-lg transition-all"
+          className="bg-white/95 hover:bg-white text-slate-800 border border-indigo-200/80 px-4 py-2.5 rounded-2xl flex items-center gap-2 text-xs font-bold shadow-xl backdrop-blur-xl transition-all hover:scale-105 active:scale-95"
         >
-          <Compass className="w-4 h-4 text-indigo-600" />
+          <Compass className="w-4 h-4 text-indigo-600 animate-spin-slow" />
           {t.tourGuideCollapsed} ({currentStepIndex + 1}/8)
         </button>
       </div>
@@ -197,16 +197,16 @@ export default function JudgeTourGuide({
 
   return (
     <div className="fixed bottom-16 md:bottom-6 left-2 right-2 md:left-auto md:right-6 z-40 md:max-w-md w-auto md:w-full px-2 sm:px-4 animate-in slide-in-from-bottom-5 duration-200">
-      <div className="rounded-2xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-xl relative overflow-hidden">
-        {/* Animated Progress Bar */}
-        <div className="h-1 w-full bg-slate-100">
+      <div className="rounded-3xl bg-white/95 backdrop-blur-xl border border-slate-200/90 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.12)] relative overflow-hidden">
+        {/* Animated Gradient Progress Bar */}
+        <div className="h-1.5 w-full bg-slate-100">
           <div
-            className="h-full bg-indigo-600 transition-all duration-300 ease-out"
+            className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transition-all duration-300 ease-out"
             style={{ width: `${((currentStepIndex + 1) / steps.length) * 100}%` }}
           />
         </div>
 
-        <div className="p-4 space-y-2">
+        <div className="p-4 sm:p-5 space-y-2.5">
           {/* Top Header */}
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
             <div className="flex items-center gap-2">
@@ -218,59 +218,59 @@ export default function JudgeTourGuide({
 
             <button
               onClick={() => setIsCollapsed(true)}
-              className="text-slate-400 hover:text-slate-700 text-xs p-1 rounded-md hover:bg-slate-100 transition-colors"
+              className="text-slate-400 hover:text-slate-700 text-xs p-1 rounded-lg hover:bg-slate-100 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
-        {/* Step Content */}
-        <div className="py-2.5 space-y-1">
-          <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-            {step.title}
-          </h4>
-          <p className="text-xs text-slate-600 leading-relaxed">
-            {step.description}
-          </p>
-        </div>
-
-        {/* Step Navigation Dots & Buttons */}
-        <div className="flex items-center justify-between pt-2.5 border-t border-slate-100">
-          <div className="flex items-center gap-1">
-            {steps.map((s, idx) => (
-              <button
-                key={s.id}
-                onClick={() => applyStep(idx)}
-                className={`h-1.5 rounded-full transition-all ${
-                  idx === currentStepIndex
-                    ? "w-4 bg-indigo-600"
-                    : "w-1.5 bg-slate-200 hover:bg-slate-300"
-                }`}
-                title={s.title}
-              />
-            ))}
+          {/* Step Content */}
+          <div className="py-1 space-y-1">
+            <h4 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+              {step.title}
+            </h4>
+            <p className="text-xs text-slate-600 leading-relaxed font-medium">
+              {step.description}
+            </p>
           </div>
 
-          <div className="flex items-center gap-2 text-xs">
-            <button
-              onClick={prevStep}
-              disabled={currentStepIndex === 0}
-              className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-30 transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
+          {/* Step Navigation Dots & Buttons */}
+          <div className="flex items-center justify-between pt-2.5 border-t border-slate-100">
+            <div className="flex items-center gap-1.5">
+              {steps.map((s, idx) => (
+                <button
+                  key={s.id}
+                  onClick={() => applyStep(idx)}
+                  className={`h-2 rounded-full transition-all duration-200 ${
+                    idx === currentStepIndex
+                      ? "w-5 bg-gradient-to-r from-indigo-600 to-violet-600"
+                      : "w-2 bg-slate-200 hover:bg-slate-300"
+                  }`}
+                  title={s.title}
+                />
+              ))}
+            </div>
 
-            <button
-              onClick={nextStep}
-              disabled={currentStepIndex === steps.length - 1}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg font-medium flex items-center gap-1 disabled:opacity-40 transition-colors shadow-xs"
-            >
-              {t.stepNext} <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-2 text-xs">
+              <button
+                onClick={prevStep}
+                disabled={currentStepIndex === 0}
+                className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-30 transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={nextStep}
+                disabled={currentStepIndex === steps.length - 1}
+                className="btn-gradient-primary text-white px-4 py-1.5 rounded-xl font-bold flex items-center gap-1 disabled:opacity-40 transition-all shadow-xs active:scale-95"
+              >
+                {t.stepNext} <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 );
 }
