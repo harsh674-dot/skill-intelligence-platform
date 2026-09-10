@@ -92,20 +92,20 @@ export default function Navbar({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Brand & Emblem */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-600 text-white shadow-xs">
-              <BrainCircuit className="w-5 h-5" />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-600 text-white shadow-xs shrink-0">
+              <BrainCircuit className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-base font-bold tracking-tight text-slate-900">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className="text-sm sm:text-base font-bold tracking-tight text-slate-900">
                   {t.brandTitle}
                 </span>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 tracking-wide">
+                <span className="hidden xs:inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 tracking-wide">
                   {t.sihBadge}
                 </span>
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="hidden sm:block text-xs text-slate-500">
                 {t.brandSubtitle}
               </p>
             </div>
@@ -289,6 +289,57 @@ export default function Navbar({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Sleek Mobile Bottom Navigation Bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-lg px-2 py-1.5 flex items-center justify-around">
+        <button
+          onClick={() => onSelectTab("employee")}
+          className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-xl transition-all ${
+            currentTab === "employee"
+              ? "text-indigo-600 font-bold"
+              : "text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <BarChart3 className="w-5 h-5" />
+          <span className="text-[10px]">{t.tabEmployee}</span>
+        </button>
+
+        <button
+          onClick={() => onSelectTab("assessments")}
+          className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-xl transition-all ${
+            currentTab === "assessments"
+              ? "text-indigo-600 font-bold"
+              : "text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <GraduationCap className="w-5 h-5" />
+          <span className="text-[10px]">{t.tabAssessments}</span>
+        </button>
+
+        <button
+          onClick={() => onSelectTab("rag_studio")}
+          className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-xl transition-all ${
+            currentTab === "rag_studio"
+              ? "text-purple-600 font-bold"
+              : "text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <Sparkles className="w-5 h-5" />
+          <span className="text-[10px]">{t.tabRagStudio}</span>
+        </button>
+
+        <button
+          onClick={() => onSelectTab("admin")}
+          className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-xl transition-all ${
+            currentTab === "admin"
+              ? "text-amber-600 font-bold"
+              : "text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <ShieldAlert className="w-5 h-5" />
+          <span className="text-[10px]">{t.tabAdmin}</span>
+        </button>
       </div>
     </header>
   );

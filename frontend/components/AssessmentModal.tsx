@@ -119,8 +119,8 @@ export default function AssessmentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl rounded-2xl bg-white border border-slate-200 p-6 sm:p-8 shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="relative w-full max-w-2xl rounded-2xl bg-white border border-slate-200 p-4 sm:p-8 shadow-2xl max-h-[92vh] overflow-y-auto">
         {/* Close Button */}
         <button
           onClick={onClose}

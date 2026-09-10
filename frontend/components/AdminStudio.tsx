@@ -216,7 +216,7 @@ export default function AdminStudio({ token, onSwitchToAdmin }: AdminStudioProps
           </div>
 
           {/* Sub-tab Switcher */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto no-scrollbar max-w-full">
             <button
               onClick={() => setActiveSubTab("upload")}
               className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${

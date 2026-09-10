@@ -183,10 +183,10 @@ export default function JudgeTourGuide({
 
   if (isCollapsed) {
     return (
-      <div className="fixed bottom-6 right-6 z-40">
+      <div className="fixed bottom-16 md:bottom-6 right-3 md:right-6 z-40">
         <button
           onClick={() => setIsCollapsed(false)}
-          className="bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 px-4 py-2.5 rounded-xl flex items-center gap-2 text-xs font-semibold shadow-lg transition-all"
+          className="bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 px-3.5 py-2 rounded-xl flex items-center gap-2 text-xs font-semibold shadow-lg transition-all"
         >
           <Compass className="w-4 h-4 text-indigo-600" />
           {t.tourGuideCollapsed} ({currentStepIndex + 1}/8)
@@ -196,7 +196,7 @@ export default function JudgeTourGuide({
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-40 max-w-md w-full px-4 animate-in slide-in-from-bottom-5 duration-200">
+    <div className="fixed bottom-16 md:bottom-6 left-2 right-2 md:left-auto md:right-6 z-40 md:max-w-md w-auto md:w-full px-2 sm:px-4 animate-in slide-in-from-bottom-5 duration-200">
       <div className="rounded-2xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-xl relative overflow-hidden">
         {/* Animated Progress Bar */}
         <div className="h-1 w-full bg-slate-100">

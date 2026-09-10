@@ -142,98 +142,97 @@ export default function EmployeeDashboard({
       </div>
 
       {/* Interactive Clickable Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Interactive Clickable Stat Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Required Skills */}
         <div
           onClick={() => handleStatCardClick("all")}
-          className={`rounded-2xl p-5 border transition-all duration-200 cursor-pointer ${
+          className={`rounded-2xl p-3.5 sm:p-5 border transition-all duration-200 cursor-pointer ${
             cardFilter === "all"
               ? "bg-white border-indigo-400 shadow-sm ring-2 ring-indigo-500/20"
               : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm hover:-translate-y-0.5"
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t.requiredSkills}</span>
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-2xs">
-              <Layers className="w-5 h-5" />
+            <span className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">{t.requiredSkills}</span>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-2xs">
+              <Layers className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div className="text-3xl font-extrabold text-slate-900 mt-3">
+          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2 sm:mt-3">
             {data.summary.total_competencies}
           </div>
-          <div className="text-xs text-slate-500 mt-1 flex items-center justify-between">
-            <span>{t.requiredSkillsDesc}</span>
-            <span className="text-[10px] text-indigo-600 font-semibold">Click to show all</span>
+          <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
+            <span className="truncate">{t.requiredSkillsDesc}</span>
+            <span className="text-[9px] sm:text-[10px] text-indigo-600 font-semibold hidden sm:inline">Show all</span>
           </div>
         </div>
 
         {/* Active Gaps */}
         <div
           onClick={() => handleStatCardClick("gaps")}
-          className={`rounded-2xl p-5 border transition-all duration-200 cursor-pointer ${
+          className={`rounded-2xl p-3.5 sm:p-5 border transition-all duration-200 cursor-pointer ${
             cardFilter === "gaps"
               ? "bg-amber-50/40 border-amber-400 shadow-sm ring-2 ring-amber-500/20"
               : "bg-white border-slate-200 hover:border-amber-300 hover:shadow-sm hover:-translate-y-0.5"
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider">{t.activeGaps}</span>
-            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-2xs">
-              <AlertTriangle className="w-5 h-5" />
+            <span className="text-[10px] sm:text-xs font-semibold text-amber-700 uppercase tracking-wider">{t.activeGaps}</span>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-2xs">
+              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div className="text-3xl font-extrabold text-amber-600 mt-3">
+          <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 mt-2 sm:mt-3">
             {data.summary.competencies_with_gaps}
           </div>
-          <div className="text-xs text-slate-500 mt-1 flex items-center justify-between">
-            <span>{t.activeGapsDesc}</span>
-            <span className="text-[10px] text-amber-700 font-semibold">Filter gaps</span>
+          <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
+            <span className="truncate">{t.activeGapsDesc}</span>
+            <span className="text-[9px] sm:text-[10px] text-amber-700 font-semibold hidden sm:inline">Filter gaps</span>
           </div>
         </div>
 
         {/* Mastered Skills */}
         <div
           onClick={() => handleStatCardClick("mastered")}
-          className={`rounded-2xl p-5 border transition-all duration-200 cursor-pointer ${
+          className={`rounded-2xl p-3.5 sm:p-5 border transition-all duration-200 cursor-pointer ${
             cardFilter === "mastered"
               ? "bg-emerald-50/40 border-emerald-400 shadow-sm ring-2 ring-emerald-500/20"
               : "bg-white border-slate-200 hover:border-emerald-300 hover:shadow-sm hover:-translate-y-0.5"
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">{t.masteredSkills}</span>
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-2xs">
-              <CheckCircle2 className="w-5 h-5" />
+            <span className="text-[10px] sm:text-xs font-semibold text-emerald-700 uppercase tracking-wider">{t.masteredSkills}</span>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-2xs">
+              <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div className="text-3xl font-extrabold text-emerald-600 mt-3">
+          <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 mt-2 sm:mt-3">
             {data.summary.mastered_competencies}
           </div>
-          <div className="text-xs text-slate-500 mt-1 flex items-center justify-between">
-            <span>{t.masteredSkillsDesc}</span>
-            <span className="text-[10px] text-emerald-700 font-semibold">Filter mastered</span>
+          <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
+            <span className="truncate">{t.masteredSkillsDesc}</span>
+            <span className="text-[9px] sm:text-[10px] text-emerald-700 font-semibold hidden sm:inline">Filter</span>
           </div>
         </div>
 
         {/* Learning Courses */}
         <div
           onClick={() => scrollToSection("learning-pathways")}
-          className="rounded-2xl bg-white border border-slate-200 p-5 hover:border-purple-300 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+          className="rounded-2xl bg-white border border-slate-200 p-3.5 sm:p-5 hover:border-purple-300 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-purple-700 uppercase tracking-wider">{t.learningCourses}</span>
-            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shadow-2xs">
-              <BookOpen className="w-5 h-5" />
+            <span className="text-[10px] sm:text-xs font-semibold text-purple-700 uppercase tracking-wider">{t.learningCourses}</span>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shadow-2xs">
+              <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div className="text-3xl font-extrabold text-purple-600 mt-3">
+          <div className="text-2xl sm:text-3xl font-extrabold text-purple-600 mt-2 sm:mt-3">
             {data.summary.total_recommendations}
           </div>
-          <div className="text-xs text-slate-500 mt-1 flex items-center justify-between">
-            <span>{t.learningCoursesDesc}</span>
-            <span className="text-[10px] text-purple-600 font-semibold flex items-center gap-0.5">
-              Jump to courses <ArrowUpRight className="w-3 h-3" />
-            </span>
+          <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
+            <span className="truncate">{t.learningCoursesDesc}</span>
+            <span className="text-[9px] sm:text-[10px] text-purple-600 font-semibold hidden sm:inline">Courses</span>
           </div>
         </div>
       </div>

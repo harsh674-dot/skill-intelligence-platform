@@ -98,63 +98,63 @@ export default function WorkforceAnalytics({ token, onSwitchToAdmin }: Workforce
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-xl bg-white border border-slate-200 p-5 shadow-xs">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="rounded-xl bg-white border border-slate-200 p-3.5 sm:p-5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{t.totalHeadcount}</span>
-            <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-              <Users className="w-4 h-4" />
+            <span className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">{t.totalHeadcount}</span>
+            <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+              <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
-          <div className="text-3xl font-bold text-slate-900 mt-3">
+          <div className="text-2xl sm:text-3xl font-bold text-slate-900 mt-2 sm:mt-3">
             {workforce_summary.total_employees}
           </div>
-          <div className="text-xs text-slate-500 mt-1">
+          <div className="text-[10px] sm:text-xs text-slate-500 mt-1 truncate">
             {t.totalHeadcountDesc} ({workforce_summary.total_departments})
           </div>
         </div>
 
-        <div className="rounded-xl bg-white border border-slate-200 p-5 shadow-xs">
+        <div className="rounded-xl bg-white border border-slate-200 p-3.5 sm:p-5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider">{t.systemicGaps}</span>
-            <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-              <AlertOctagon className="w-4 h-4" />
+            <span className="text-[11px] sm:text-xs font-semibold text-amber-700 uppercase tracking-wider">{t.systemicGaps}</span>
+            <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+              <AlertOctagon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
-          <div className="text-3xl font-bold text-amber-600 mt-3">
+          <div className="text-2xl sm:text-3xl font-bold text-amber-600 mt-2 sm:mt-3">
             {gap_analytics.total_gaps_count}
           </div>
-          <div className="text-xs text-slate-500 mt-1">
+          <div className="text-[10px] sm:text-xs text-slate-500 mt-1 truncate">
             {gap_analytics.critical_gaps_count} {t.systemicGapsDesc}
           </div>
         </div>
 
-        <div className="rounded-xl bg-white border border-slate-200 p-5 shadow-xs">
+        <div className="rounded-xl bg-white border border-slate-200 p-3.5 sm:p-5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">{t.upgradesViaLoop}</span>
-            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <TrendingUp className="w-4 h-4" />
+            <span className="text-[11px] sm:text-xs font-semibold text-emerald-700 uppercase tracking-wider">{t.upgradesViaLoop}</span>
+            <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
-          <div className="text-3xl font-bold text-emerald-600 mt-3">
+          <div className="text-2xl sm:text-3xl font-bold text-emerald-600 mt-2 sm:mt-3">
             +{training_effectiveness.competency_upgrades}
           </div>
-          <div className="text-xs text-slate-500 mt-1">
+          <div className="text-[10px] sm:text-xs text-slate-500 mt-1 truncate">
             {t.avgScore} {training_effectiveness.average_score}%
           </div>
         </div>
 
-        <div className="rounded-xl bg-white border border-slate-200 p-5 shadow-xs">
+        <div className="rounded-xl bg-white border border-slate-200 p-3.5 sm:p-5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-purple-700 uppercase tracking-wider">{t.aiQuestionPool}</span>
-            <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
-              <Sparkles className="w-4 h-4" />
+            <span className="text-[11px] sm:text-xs font-semibold text-purple-700 uppercase tracking-wider">{t.aiQuestionPool}</span>
+            <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
-          <div className="text-3xl font-bold text-purple-600 mt-3">
+          <div className="text-2xl sm:text-3xl font-bold text-purple-600 mt-2 sm:mt-3">
             {data.content_and_ai.ai_questions.total}
           </div>
-          <div className="text-xs text-slate-500 mt-1">
+          <div className="text-[10px] sm:text-xs text-slate-500 mt-1 truncate">
             {data.content_and_ai.ai_questions.approved} {t.approvedInCirculation}
           </div>
         </div>

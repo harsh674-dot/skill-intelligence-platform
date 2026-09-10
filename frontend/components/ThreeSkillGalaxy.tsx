@@ -356,10 +356,55 @@ export default function ThreeSkillGalaxy({
       }
     };
 
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        isDragging = true;
+        previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+    };
+
+    const onTouchEnd = () => {
+      isDragging = false;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 1 && isDragging) {
+        const touch = e.touches[0];
+        const deltaX = touch.clientX - previousMousePosition.x;
+        const deltaY = touch.clientY - previousMousePosition.y;
+        dragVelocityX = deltaX * 0.006;
+        dragVelocityY = deltaY * 0.006;
+        group.rotation.y += dragVelocityX;
+        group.rotation.x += dragVelocityY;
+        previousMousePosition = { x: touch.clientX, y: touch.clientY };
+
+        const rect = container.getBoundingClientRect();
+        mouse.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(nodeMeshes);
+        if (intersects.length > 0) {
+          const hit = intersects[0].object as THREE.Mesh;
+          const skillData = hit.userData as SkillNodeData;
+          setHoveredNode({
+            name: skillData.name,
+            domain: skillData.domain,
+            level: skillData.level,
+            required: skillData.required,
+            x: touch.clientX - rect.left,
+            y: touch.clientY - rect.top,
+          });
+        }
+      }
+    };
+
     container.addEventListener("mousedown", onMouseDown);
     window.addEventListener("mouseup", onMouseUp);
     container.addEventListener("mousemove", onMouseMove);
     container.addEventListener("click", onClick);
+    container.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchend", onTouchEnd);
+    container.addEventListener("touchmove", onTouchMove, { passive: true });
 
     // Resize Handler
     const onResize = () => {
@@ -441,6 +486,9 @@ export default function ThreeSkillGalaxy({
       window.removeEventListener("mouseup", onMouseUp);
       container.removeEventListener("mousemove", onMouseMove);
       container.removeEventListener("click", onClick);
+      container.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchend", onTouchEnd);
+      container.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("resize", onResize);
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
@@ -450,7 +498,7 @@ export default function ThreeSkillGalaxy({
   }, [activeSkill, onSelectSkill]);
 
   return (
-    <div className="relative w-full h-[430px] rounded-2xl overflow-hidden bg-gradient-to-b from-indigo-50/40 via-white to-slate-50/60 border border-slate-200 shadow-sm flex items-center justify-center group select-none">
+    <div className="relative w-full h-[320px] sm:h-[430px] rounded-2xl overflow-hidden bg-gradient-to-b from-indigo-50/40 via-white to-slate-50/60 border border-slate-200 shadow-sm flex items-center justify-center group select-none touch-none">
       {/* 3D WebGL Canvas */}
       <div
         ref={containerRef}
@@ -530,8 +578,8 @@ export default function ThreeSkillGalaxy({
       </div>
 
       {/* Bottom Interactive Domain Filter Pills */}
-      <div className="absolute bottom-4 left-4 right-4 z-10 flex items-center justify-between flex-wrap gap-2 pointer-events-auto">
-        <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="absolute bottom-3 sm:bottom-4 left-3 sm:left-4 right-3 sm:right-4 z-10 flex items-center justify-between gap-2 pointer-events-auto">
+        <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar py-0.5 max-w-full">
           <button
             onClick={() => setSelectedDomain("all")}
             className={`text-[11px] px-2.5 py-1 rounded-lg font-medium transition-all ${
