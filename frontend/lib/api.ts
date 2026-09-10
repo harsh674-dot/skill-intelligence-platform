@@ -1,5 +1,11 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
+const MOCK_ANSWERS: Map<string, { questionId: string; selectedAnswer: string; isCorrect: boolean }> = new Map();
+
+function getMockAssessmentId(token?: string): string {
+  return token?.includes("admin") ? "mock-assessment-id-admin" : "mock-assessment-id-1";
+}
+
 export interface HealthResponse {
   status: string;
   service: string;
@@ -207,7 +213,6 @@ import {
   MOCK_DASHBOARD,
   MOCK_ADMIN_DASHBOARD,
   MOCK_ASSESSMENT,
-  MOCK_SCORE_RESULT,
   MOCK_LEARNING_CONTENT,
   MOCK_AI_QUESTIONS,
 } from "./mockData";
@@ -259,10 +264,14 @@ function getDemoFallback<T>(endpoint: string, options: RequestInit = {}, token?:
     })) as unknown as T;
   }
   if (endpoint.includes("/api/assessments/start")) {
-    return MOCK_ASSESSMENT as unknown as T;
+    const assessmentId = getMockAssessmentId(token);
+    MOCK_ANSWERS.clear();
+    return {
+      ...MOCK_ASSESSMENT,
+      assessment_id: assessmentId,
+    } as unknown as T;
   }
   if (endpoint.includes("/answers")) {
-    // Parse request body to get question_id and selected_answer
     let questionId = "";
     let selectedAnswer = "";
     try {
@@ -273,15 +282,32 @@ function getDemoFallback<T>(endpoint: string, options: RequestInit = {}, token?:
       }
     } catch {}
 
-    // Look up the question in mock data to find the correct answer
     const mockQuestion = MOCK_ASSESSMENT.questions.find((q) => q.id === questionId);
     const correctAnswer = (mockQuestion?.correct_answer || "").trim().toUpperCase();
     const isCorrect = !!correctAnswer && selectedAnswer === correctAnswer;
+
+    MOCK_ANSWERS.set(questionId, {
+      questionId,
+      selectedAnswer,
+      isCorrect,
+    });
 
     const explanations: Record<string, string> = {
       "q-1": "Stratified Random Sampling ensures each sub-population is proportionately represented, reducing sampling variance.",
       "q-2": "GVA at basic prices = Output at basic prices minus Intermediate Consumption at purchasers' prices (SNA 2008).",
       "q-3": "pandas.DataFrame.groupby() enables efficient vectorized grouped aggregations in Python.",
+      "q-4": "ASI focuses on the organized manufacturing sector, not agriculture or services.",
+      "q-5": "Non-sampling errors arise during data collection, processing, and non-response, not from sample selection.",
+      "q-6": "HAVING filters grouped results after aggregation; WHERE filters rows before grouping.",
+      "q-7": "Official Statistics must be impartial, reliable, and timely for public use.",
+      "q-8": "DDI standard documents social science data across the entire research lifecycle.",
+      "q-9": "The 40/60 rule gives 60% weight to new evidence and 40% to historical competency.",
+      "q-10": "Imputation replaces missing or inconsistent values with statistically estimated ones.",
+      "q-11": "FastAPI's Depends() is used to inject dependencies like the current user into route handlers.",
+      "q-12": "pgvector enables efficient similarity search over vector embeddings in PostgreSQL.",
+      "q-13": "Organizational priority reflects how strategically important a competency is for the organization.",
+      "q-14": "Rebasing updates the base year in national accounts to reflect current economic structure.",
+      "q-15": "Environment variables or a secrets manager should be used for sensitive configuration values.",
     };
 
     return {
@@ -293,13 +319,50 @@ function getDemoFallback<T>(endpoint: string, options: RequestInit = {}, token?:
   }
   if (endpoint.includes("/finish")) {
     return {
-      assessment_id: "mock-assessment-id-1",
+      assessment_id: getMockAssessmentId(token),
       score: 100,
       completed_at: new Date().toISOString(),
     } as unknown as T;
   }
   if (endpoint.includes("/score")) {
-    return MOCK_SCORE_RESULT as unknown as T;
+    const assessmentId = getMockAssessmentId(token);
+    const answers = Array.from(MOCK_ANSWERS.values());
+    
+    const totalQuestions = MOCK_ASSESSMENT.questions.length;
+    const correctAnswers = answers.filter((a) => a.isCorrect).length;
+    const accuracy = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+    
+    const competencyUpdates = [
+      {
+        competency_id: "comp-2",
+        competency_name: "Survey Design",
+        previous_level: 3,
+        evidence_level: 4,
+        updated_level: 4,
+        previous_gap: 1,
+        new_gap: 0,
+      },
+      {
+        competency_id: "comp-1",
+        competency_name: "National Accounts",
+        previous_level: 2,
+        evidence_level: 3,
+        updated_level: 3,
+        previous_gap: 1,
+        new_gap: 0,
+      },
+    ];
+
+    return {
+      message: "Post-learning assessment scored successfully (40/60 Rule Applied)",
+      assessment_id: assessmentId,
+      total_questions: totalQuestions,
+      correct_answers: correctAnswers,
+      accuracy,
+      overall_score: accuracy,
+      competency_updates: competencyUpdates,
+      refreshed_recommendations_count: 6,
+    } as unknown as T;
   }
   if (endpoint.includes("/chunks")) {
     return [
@@ -426,7 +489,7 @@ export async function submitAnswer(
   assessmentId: string,
   questionId: string,
   selectedOption: string
-): Promise<{ message: string; is_correct: boolean; explanation?: string }> {
+): Promise<{ message: string; is_correct: boolean; explanation?: string; correct_answer?: string }> {
   return request(
     `/api/assessments/${assessmentId}/answers`,
     {

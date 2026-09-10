@@ -8,6 +8,8 @@ import {
   ArrowRight,
   Sparkles,
   Zap,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import {
   startAssessment,
@@ -40,6 +42,15 @@ export default function AssessmentModal({
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [answersSubmitted, setAnswersSubmitted] = useState<boolean>(false);
+  const [answerResults, setAnswerResults] = useState<Array<{
+    questionId: string;
+    questionText: string;
+    options: Record<string, string>;
+    selectedAnswer: string;
+    correctAnswer: string;
+    isCorrect: boolean;
+    explanation?: string;
+  }>>([]);
 
   const [completedResults, setCompletedResults] = useState<ScoreAssessmentResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +60,7 @@ export default function AssessmentModal({
       try {
         setLoading(true);
         const assessmentType = courseId ? "reassessment" : "initial";
-        const res = await startAssessment(token, assessmentType, 5, courseId);
+        const res = await startAssessment(token, assessmentType, 15, courseId);
         setAssessmentId(res.assessment_id);
         setQuestions(res.questions);
       } catch (err: unknown) {
@@ -64,13 +75,25 @@ export default function AssessmentModal({
   const currentQ = questions[currentIndex];
 
   const handleSelectOption = async (optionKey: string) => {
-    if (submitting || answersSubmitted) return;
+    if (submitting || answersSubmitted || !currentQ) return;
     setSelectedOption(optionKey);
     setSubmitting(true);
 
     try {
-      if (!assessmentId || !currentQ) return;
-      await submitAnswer(token, assessmentId, currentQ.id, optionKey);
+      if (!assessmentId) return;
+      const res = await submitAnswer(token, assessmentId, currentQ.id, optionKey);
+      setAnswerResults((prev) => [
+        ...prev,
+        {
+          questionId: currentQ.id,
+          questionText: currentQ.question_text,
+          options: currentQ.options,
+          selectedAnswer: optionKey,
+          correctAnswer: res.correct_answer || currentQ.correct_answer || "",
+          isCorrect: res.is_correct,
+          explanation: res.explanation || "",
+        },
+      ]);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to submit answer.");
     } finally {
@@ -213,6 +236,50 @@ export default function AssessmentModal({
                 </div>
               ))}
             </div>
+
+            {/* Answer Review */}
+            {answerResults.length > 0 && (
+              <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Answer Review
+                </h4>
+                {answerResults.map((result) => (
+                  <div
+                    key={result.questionId}
+                    className={`p-3.5 rounded-xl border ${
+                      result.isCorrect
+                        ? "bg-emerald-50 border-emerald-200"
+                        : "bg-rose-50 border-rose-200"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <div className="text-sm font-semibold text-slate-900">
+                          {result.questionText}
+                        </div>
+                        <div className="text-xs text-slate-600 mt-1">
+                          <span className="font-medium">Your answer:</span> {result.selectedAnswer}
+                          <span className="mx-1.5 text-slate-400">|</span>
+                          <span className="font-medium">Correct:</span> {result.correctAnswer}
+                        </div>
+                        {result.explanation && (
+                          <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                            {result.explanation}
+                          </p>
+                        )}
+                      </div>
+                      <div className="shrink-0 mt-0.5">
+                        {result.isCorrect ? (
+                          <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-rose-600" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="pt-2">
               <button
