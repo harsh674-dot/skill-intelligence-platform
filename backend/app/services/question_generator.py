@@ -10,10 +10,6 @@ Generates varied MCQs from supplied learning content.
 import re
 from typing import Any
 
-import torch
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
-
-
 # ============================================================
 # CONFIGURATION
 # ============================================================
@@ -40,24 +36,35 @@ QUESTION_FOCUSES = [
     "a calculation, rule, or technical detail if present",
 ]
 
-
 # ============================================================
-# LOAD MODEL
+# LAZY LOAD MODEL
 # ============================================================
 
-print(f"Loading question generation model: {MODEL_NAME}")
+_tokenizer = None
+_model = None
+_load_attempted = False
 
-tokenizer = AutoTokenizer.from_pretrained(
-    MODEL_NAME,
-)
-
-model = AutoModelForSeq2SeqLM.from_pretrained(
-    MODEL_NAME,
-)
-
-model.eval()
-
-print("Question generation model loaded.")
+def _get_model():
+    global _tokenizer, _model, _load_attempted
+    if _tokenizer is not None and _model is not None:
+        return _tokenizer, _model
+    if _load_attempted:
+        return None, None
+    _load_attempted = True
+    try:
+        import torch
+        from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+        print(f"Loading question generation model: {MODEL_NAME}")
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+        model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
+        model.eval()
+        _tokenizer = tokenizer
+        _model = model
+        print("Question generation model loaded.")
+        return _tokenizer, _model
+    except Exception as exc:
+        print(f"[QuestionGenerator] Transformers/Torch model not available: {exc}. Using grounded fallback generator.")
+        return None, None
 
 
 # ============================================================
@@ -66,12 +73,13 @@ print("Question generation model loaded.")
 
 def _generate_text(prompt: str) -> str:
     """
-    Generate text using FLAN-T5.
-
-    Sampling is enabled so repeated calls with the same
-    learning content can produce different questions.
+    Generate text using FLAN-T5 if available.
     """
+    tokenizer, model = _get_model()
+    if tokenizer is None or model is None:
+        raise RuntimeError("Model not available")
 
+    import torch
     inputs = tokenizer(
         prompt,
         return_tensors="pt",
@@ -83,17 +91,11 @@ def _generate_text(prompt: str) -> str:
         outputs = model.generate(
             **inputs,
             max_new_tokens=MAX_OUTPUT_LENGTH,
-
-            # Sampling prevents identical deterministic output.
             do_sample=True,
             temperature=0.85,
             top_p=0.92,
             top_k=50,
-
-            # Prevent repetitive phrases.
             no_repeat_ngram_size=3,
-
-            # Keep generation reasonably controlled.
             repetition_penalty=1.15,
         )
 
@@ -103,6 +105,7 @@ def _generate_text(prompt: str) -> str:
     )
 
     return result.strip()
+
 
 
 # ============================================================

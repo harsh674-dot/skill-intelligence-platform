@@ -24,11 +24,21 @@ router = APIRouter(
 # =========================================================
 
 
+from app.models.question import Question
+from app.models.competency import Competency
+
+
 class ReviewQuestionRequest(BaseModel):
     status: str = Field(
         ...,
         description="Review decision: approved or rejected",
     )
+    question_text: str | None = None
+    options: dict[str, str] | None = None
+    correct_answer: str | None = None
+    explanation: str | None = None
+    competency_id: UUID | None = None
+
 
 
 # =========================================================
@@ -169,7 +179,42 @@ def review_ai_question(
             ),
         )
 
+    if payload.question_text:
+        question.question_text = payload.question_text
+    if payload.options:
+        question.options = payload.options
+    if payload.correct_answer:
+        question.correct_answer = payload.correct_answer
+    if payload.explanation:
+        question.explanation = payload.explanation
+    if payload.competency_id:
+        question.competency_id = payload.competency_id
+
     question.status = new_status
+
+    published_id = None
+    if new_status == "approved":
+        target_comp_id = question.competency_id
+        if not target_comp_id:
+            first_comp = db.query(Competency).filter(Competency.is_active == True).first()
+            if first_comp:
+                target_comp_id = first_comp.id
+                question.competency_id = target_comp_id
+
+        if target_comp_id:
+            master_q = Question(
+                competency_id=target_comp_id,
+                question_text=question.question_text,
+                question_type="mcq",
+                difficulty=question.difficulty or "intermediate",
+                options=question.options,
+                correct_answer=question.correct_answer,
+                explanation=question.explanation,
+                is_active=True,
+            )
+            db.add(master_q)
+            db.flush()
+            published_id = str(master_q.id)
 
     try:
         db.commit()
@@ -187,7 +232,9 @@ def review_ai_question(
         "message": f"Question {new_status} successfully.",
         "id": str(question.id),
         "status": question.status,
+        "published_question_id": published_id,
     }
+
 
 
 # =========================================================

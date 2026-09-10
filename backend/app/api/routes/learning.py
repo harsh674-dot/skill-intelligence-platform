@@ -616,3 +616,64 @@ def generate_mcq_from_content(
 
         "status": question.status,
     }
+
+
+@router.get("/content")
+def list_learning_content(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """
+    List all uploaded learning content materials with chunk statistics.
+    """
+    contents = (
+        db.query(LearningContent)
+        .order_by(LearningContent.created_at.desc())
+        .all()
+    )
+
+    results = []
+    for item in contents:
+        chunk_count = (
+            db.query(ContentChunk)
+            .filter(ContentChunk.learning_content_id == item.id)
+            .count()
+        )
+        results.append({
+            "id": str(item.id),
+            "title": item.title,
+            "file_name": item.file_name,
+            "file_type": item.file_type,
+            "status": item.status,
+            "chunk_count": chunk_count,
+            "created_at": item.created_at,
+        })
+    return results
+
+
+@router.get("/content/{content_id}/chunks")
+def get_content_chunks(
+    content_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """
+    Inspect the chunks extracted from a learning content document.
+    """
+    chunks = (
+        db.query(ContentChunk)
+        .filter(ContentChunk.learning_content_id == content_id)
+        .order_by(ContentChunk.chunk_index)
+        .all()
+    )
+
+    return [
+        {
+            "id": str(c.id),
+            "chunk_index": c.chunk_index,
+            "chunk_text": c.chunk_text,
+            "has_embedding": c.embedding is not None,
+            "text_length": len(c.chunk_text),
+        }
+        for c in chunks
+    ]

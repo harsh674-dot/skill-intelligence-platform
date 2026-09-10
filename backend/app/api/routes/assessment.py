@@ -521,7 +521,10 @@ def submit_answer(
             answer.selected_answer
         ),
         saved=True,
+        is_correct=is_correct,
+        explanation=question.explanation,
     )
+
 
 
 # =========================================================
@@ -969,6 +972,9 @@ def score_assessment(
 
     db.commit()
 
+    from app.api.routes.dashboard import invalidate_dashboard_cache
+    invalidate_dashboard_cache(current_user.id)
+
     # -----------------------------------------------------
     # 33 + 34
     #
@@ -983,28 +989,46 @@ def score_assessment(
         )
     )
 
+    total_q = sum(r["total_questions"] for r in results) if results else len(answers)
+    total_corr = sum(r["correct_answers"] for r in results) if results else sum(1 for a in answers if a.is_correct)
+    overall_acc = round((total_corr / total_q * 100), 2) if total_q > 0 else 0.0
+
+    competency_updates = [
+        {
+            "competency_id": r["competency_id"],
+            "competency_name": r["competency_name"],
+            "previous_level": r["previous_level"],
+            "evidence_level": r["evidence_level"],
+            "updated_level": r["updated_level"],
+            "previous_gap": r["gap_before"],
+            "new_gap": r["gap_after"],
+        }
+        for r in results
+    ]
+
     return {
         "message": (
             "Post-learning assessment "
             "scored successfully"
         ),
-
         "assessment_id": assessment_id,
-
         "assessment_type": (
             assessment.assessment_type
         ),
-
         "combination_rule": (
             "40% previous competency + "
             "60% new assessment evidence"
         ),
-
+        "total_questions": total_q,
+        "correct_answers": total_corr,
+        "accuracy": overall_acc,
+        "overall_score": overall_acc,
+        "competency_updates": competency_updates,
         "results": results,
-
         "recommendations_refreshed": (
             recommendation_refresh
         ),
+        "refreshed_recommendations_count": len(recommendation_refresh) if isinstance(recommendation_refresh, list) else 0,
     }
 
 
