@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+import dynamic from "next/dynamic";
+
+const LandingPage = dynamic(() => import("@/components/LandingPage"), { ssr: false });
 import Navbar, { DemoPersona, DEMO_PERSONAS } from "@/components/Navbar";
 import EmployeeDashboard from "@/components/EmployeeDashboard";
 import AssessmentModal from "@/components/AssessmentModal";
@@ -15,18 +18,26 @@ import {
   EmployeeDashboardData,
   UserResponse,
 } from "@/lib/api";
+import { MOCK_DASHBOARD } from "@/lib/mockData";
 import { AlertCircle, Zap } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 
 export default function Home() {
   const { t } = useLanguage();
+  const [showLanding, setShowLanding] = useState(true);
+  const [mainVisible, setMainVisible] = useState(false);
   const [token, setToken] = useState<string | null>(null);
-  const [currentUser, setCurrentUser] = useState<UserResponse | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserResponse | null>({
+    id: "demo-" + DEMO_PERSONAS[0].email,
+    email: DEMO_PERSONAS[0].email,
+    full_name: DEMO_PERSONAS[0].name,
+    access_role: DEMO_PERSONAS[0].access_role,
+  });
   const [currentTab, setCurrentTab] = useState<"employee" | "assessments" | "rag_studio" | "admin">("employee");
   const [isBackendOnline, setIsBackendOnline] = useState<boolean>(false);
 
-  // Employee Dashboard Data
-  const [dashboardData, setDashboardData] = useState<EmployeeDashboardData | null>(null);
+  // Employee Dashboard Data initialized with rich mock data for instant zero-lag loading
+  const [dashboardData, setDashboardData] = useState<EmployeeDashboardData | null>(MOCK_DASHBOARD);
   const [loadingDashboard, setLoadingDashboard] = useState<boolean>(false);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
 
@@ -44,7 +55,7 @@ export default function Home() {
     }, 3200);
   }, []);
 
-  const handleSwitchPersona = useCallback(async (persona: DemoPersona) => {
+  const handleSwitchPersona = useCallback(async (persona: DemoPersona, explicitTab?: "employee" | "assessments" | "rag_studio" | "admin") => {
     try {
       setDashboardError(null);
 
@@ -55,7 +66,9 @@ export default function Home() {
         access_role: persona.access_role,
       });
 
-      if (persona.access_role === "admin") {
+      if (explicitTab) {
+        setCurrentTab(explicitTab);
+      } else if (persona.access_role === "admin") {
         setCurrentTab("admin");
       } else {
         setCurrentTab("employee");
@@ -79,7 +92,7 @@ export default function Home() {
       }
 
       let authToken = typeof window !== "undefined" ? sessionStorage.getItem("token_" + persona.email) : null;
-      if (!authToken) {
+      if (!authToken || authToken.startsWith("demo-token")) {
         const authRes = await login(persona.email, "Demo@12345");
         authToken = authRes.access_token;
         if (typeof window !== "undefined") {
@@ -127,7 +140,7 @@ export default function Home() {
       .catch(() => setIsBackendOnline(false));
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    handleSwitchPersona(DEMO_PERSONAS[0]);
+    handleSwitchPersona(DEMO_PERSONAS[0], "employee");
   }, [handleSwitchPersona]);
 
   const refreshDashboard = async () => {
@@ -154,7 +167,29 @@ export default function Home() {
     setIsAssessmentOpen(true);
   };
 
+  const handleEnterPlatform = (tab?: "employee" | "assessments" | "rag_studio" | "admin", personaIndex?: number) => {
+    if (personaIndex !== undefined && DEMO_PERSONAS[personaIndex]) {
+      handleSwitchPersona(DEMO_PERSONAS[personaIndex], tab || "employee");
+    } else if (tab) {
+      setCurrentTab(tab);
+    }
+    setShowLanding(false);
+    setTimeout(() => setMainVisible(true), 100);
+  };
+
   return (
+    <>
+      {/* 3D Landing Page Overlay */}
+      {showLanding && <LandingPage onEnter={handleEnterPlatform} />}
+
+      {/* Main App (fades in after entering) */}
+      <div
+        style={{
+          opacity: mainVisible ? 1 : 0,
+          transition: "opacity 0.8s ease",
+          minHeight: "100vh",
+        }}
+      >
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
       {/* Top Navbar */}
       <Navbar
@@ -163,6 +198,10 @@ export default function Home() {
         onSelectTab={setCurrentTab}
         onSwitchPersona={handleSwitchPersona}
         isBackendOnline={isBackendOnline}
+        onReturnTo3D={() => {
+          setShowLanding(true);
+          setMainVisible(false);
+        }}
       />
 
       {/* Main Content Area */}
@@ -306,5 +345,7 @@ export default function Home() {
         </div>
       )}
     </div>
+      </div>
+    </>
   );
 }

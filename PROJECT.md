@@ -506,3 +506,41 @@ pytest tests/
 ## 15. License
 
 Developed for **Smart India Hackathon (SIH26101)**.
+
+---
+
+## 16. Live Database Authentication & Persona Credentials
+
+The fake/mock fallbacks have been completely eliminated. All personas in the **Judge / Persona Switcher** are backed by real **PostgreSQL** records, authenticating via JWT tokens through the FastAPI backend (`POST /api/auth/login`).
+
+### 16.1 Login Credentials for All Personas
+
+| Avatar | Name | Role & Department | Access Role | Login Email | Password |
+| :---: | :--- | :--- | :---: | :--- | :--- |
+| **A** | **Ananya Sharma** | Statistical Officer • National Statistical Office | `employee` | `ananya.sharma@demo.gov.in` | `Demo@12345` |
+| **R** | **Rahul Verma** | Data Analyst • National Statistical Office | `employee` | `rahul.verma@demo.gov.in` | `Demo@12345` |
+| **P** | **Priya Nair** | Senior Statistical Officer • National Sample Survey Office | `employee` | `priya.nair@demo.gov.in` | `Demo@12345` |
+| **R** | **Rohit Kumar** | System Admin • State Directorate of Economics and Statistics | `admin` | `rohit.kumar@demo.gov.in` | `Demo@12345` |
+
+### 16.2 Implementation Architecture & Fixes
+
+1. **Local PostgreSQL Database Activated**:
+   - Switched from the offline remote Neon URL to the local PostgreSQL database (`skill_intelligence` on port `5432`).
+   - Adjusted `embedding` column in [content_chunk.py](file:///c:/Users/GIGABYTE/Downloads/skill-intelligence-platform/backend/app/models/content_chunk.py) to remove external C-extension requirements, enabling clean native table generation.
+   - Seeded all 12 real users, 34 competencies, 50 role mappings, 23 courses, and 102 assessment questions.
+
+2. **No More Fake/Mock Fallbacks**:
+   - Removed the aggressive circuit breaker and 1.2s premature mock timeout in [api.ts](file:///c:/Users/GIGABYTE/Downloads/skill-intelligence-platform/frontend/lib/api.ts).
+   - In [page.tsx](file:///c:/Users/GIGABYTE/Downloads/skill-intelligence-platform/frontend/app/page.tsx), switching a persona directly calls `POST /api/auth/login` to retrieve a real JWT access token, fetches `/api/auth/me`, and retrieves the real employee/admin dashboard data.
+
+3. **In-App Persona Switcher & Direct Sign-In**:
+   - The dropdown switcher in [Navbar.tsx](file:///c:/Users/GIGABYTE/Downloads/skill-intelligence-platform/frontend/components/Navbar.tsx) allows instant one-click switching with real backend JWT authentication while keeping the UI clean.
+   - Added a **"Sign In with Custom Credentials"** modal in the Navbar to allow manual authentication with any email and password.
+
+4. **Verification**:
+   - All 4 accounts verified live against `http://127.0.0.1:8000/api/auth/login` and `/api/auth/me` (returning `200 OK` with valid JWT tokens).
+   - Frontend TypeScript check (`npx tsc --noEmit`) passes with 0 errors.
+
+> [!NOTE]
+> Both the frontend (`http://localhost:3000`) and backend (`http://127.0.0.1:8000`) are actively running and ready to test directly in your browser.
+

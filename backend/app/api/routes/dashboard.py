@@ -1,5 +1,6 @@
 import time
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -58,6 +59,15 @@ def get_employee_dashboard(
     # ---------------------------------------------------------
     # 1. Validate employee role
     # ---------------------------------------------------------
+    if not current_user.job_role_id:
+        default_role = db.scalar(
+            select(Role).where(Role.is_active == True).order_by(Role.name).limit(1)
+        )
+        if default_role:
+            current_user.job_role_id = default_role.id
+            db.commit()
+            db.refresh(current_user)
+
     if not current_user.job_role_id:
         raise HTTPException(
             status_code=400,

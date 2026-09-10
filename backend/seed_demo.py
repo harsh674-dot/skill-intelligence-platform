@@ -92,10 +92,11 @@ DEMO_USERS = [
         "email": "rohit.kumar@demo.gov.in",
         "full_name": "Rohit Kumar",
         "department": "State Directorate of Economics and Statistics",
-        "designation": "Junior Statistical Officer",
-        "role": "Statistical Officer",
-        "education": "B.Sc. Statistics",
-        "experience_years": 1,
+        "designation": "System Admin",
+        "role": "IT Officer",
+        "access_role": "admin",
+        "education": "B.Tech Computer Science",
+        "experience_years": 5,
     },
     {
         "email": "neha.gupta@demo.gov.in",
@@ -224,13 +225,14 @@ CONTENT = [
 def get_or_create_user(db, data, role_map):
     user = db.scalar(select(User).where(User.email == data["email"]))
 
+    access_role = data.get("access_role", "employee")
     if user is None:
         user = User(
             id=uuid.uuid4(),
             email=data["email"],
             password_hash=hash_password("Demo@12345"),
             full_name=data["full_name"],
-            access_role="employee",
+            access_role=access_role,
             designation=data["designation"],
             department=data["department"],
             job_role_id=role_map[data["role"]].id,
@@ -242,6 +244,7 @@ def get_or_create_user(db, data, role_map):
         db.flush()
     else:
         user.full_name = data["full_name"]
+        user.access_role = access_role
         user.designation = data["designation"]
         user.department = data["department"]
         user.job_role_id = role_map[data["role"]].id
@@ -617,7 +620,7 @@ def seed_demo():
                         user_id=user.id,
                         course_id=course.id,
                         status=status,
-                        progress_percent=percent,
+                        progress_percentage=percent,
                         started_at=started,
                         completed_at=completed,
                     )

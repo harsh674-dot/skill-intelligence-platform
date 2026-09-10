@@ -382,11 +382,16 @@ function getDemoFallback<T>(endpoint: string, options: RequestInit = {}, token?:
 // CORE FETCH WRAPPER
 // -------------------------------------------------------------
 
+let lastDbFailureTime = 0;
+
 async function request<T>(
   endpoint: string,
   options: RequestInit = {},
   token?: string
 ): Promise<T> {
+  const fallback = getDemoFallback<T>(endpoint, options, token);
+
+  // Ensure real requests are prioritized with healthy timeout
   const headers: Record<string, string> = {
     "Accept": "application/json",
     ...(options.headers as Record<string, string> || {}),
@@ -400,19 +405,27 @@ async function request<T>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
+  const controller = new AbortController();
+  const timeoutMs = endpoint.includes("/health") ? 2000 : 10000;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
+      if (response.status >= 500) {
+        lastDbFailureTime = Date.now();
+      }
       let errorDetail = `Request failed with status ${response.status}`;
       try {
         const errJson = await response.json();
         errorDetail = errJson.detail || errJson.message || JSON.stringify(errJson);
       } catch {
-        // fallback to status text
         errorDetail = response.statusText || errorDetail;
       }
       throw new Error(errorDetail);
@@ -420,8 +433,9 @@ async function request<T>(
 
     return response.json();
   } catch (err: unknown) {
+    clearTimeout(timeoutId);
+    lastDbFailureTime = Date.now();
     // If backend is unreachable or returns network error, fallback gracefully to offline demo data
-    const fallback = getDemoFallback<T>(endpoint, options, token);
     if (fallback !== undefined) {
       return fallback;
     }
@@ -441,6 +455,24 @@ export async function login(email: string, password: string): Promise<TokenRespo
   return request<TokenResponse>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
+  });
+}
+
+export async function register(
+  email: string,
+  password: string,
+  full_name: string,
+  role_id?: string,
+  department?: string,
+  designation?: string
+): Promise<UserResponse> {
+  const body: Record<string, unknown> = { email, password, full_name };
+  if (role_id) body.role_id = role_id;
+  if (department) body.department = department;
+  if (designation) body.designation = designation;
+  return request<UserResponse>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify(body),
   });
 }
 

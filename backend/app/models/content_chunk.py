@@ -1,8 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pgvector.sqlalchemy import Vector
-from sqlalchemy import DateTime, ForeignKey, Integer, Text, func
+from sqlalchemy import DateTime, ForeignKey, Integer, Text, func, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -39,7 +38,7 @@ class ContentChunk(Base):
     )
 
     embedding: Mapped[list[float] | None] = mapped_column(
-        Vector(384),
+        JSON,
         nullable=True,
     )
 

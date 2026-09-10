@@ -13,6 +13,7 @@ class Base(DeclarativeBase):
 engine = create_engine(
     settings.DATABASE_URL,
     pool_pre_ping=True,
+    connect_args={"connect_timeout": 2} if "psycopg" in settings.DATABASE_URL else {},
 )
 
 

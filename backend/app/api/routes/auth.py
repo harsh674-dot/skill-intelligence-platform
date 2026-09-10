@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_current_user
+from app.models.competency import RoleCompetency, UserCompetency
+from app.models.role import Role
 from app.models.user import User
 from app.schemas.auth import (
     LoginRequest,
@@ -55,15 +57,42 @@ def register(
         )
 
     # Create a new employee.
+    selected_role_id = data.role_id
+    if selected_role_id is None:
+        default_role = db.scalar(
+            select(Role).where(Role.is_active == True).order_by(Role.name).limit(1)
+        )
+        if default_role:
+            selected_role_id = default_role.id
+
     user = User(
         email=data.email,
         password_hash=hash_password(data.password),
         full_name=data.full_name,
         access_role="employee",
+        department=data.department,
+        designation=data.designation,
+        job_role_id=selected_role_id,
         is_active=True,
     )
 
     db.add(user)
+    db.flush()
+
+    if selected_role_id:
+        role_competencies = db.scalars(
+            select(RoleCompetency).where(RoleCompetency.role_id == selected_role_id)
+        ).all()
+
+        for rc in role_competencies:
+            user_competency = UserCompetency(
+                user_id=user.id,
+                competency_id=rc.competency_id,
+                current_level=1,
+                source="initial",
+            )
+            db.add(user_competency)
+
     db.commit()
     db.refresh(user)
 
