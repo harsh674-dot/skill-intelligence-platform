@@ -64,7 +64,10 @@ class Question(Base):
 
     source_content_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("learning_content.id", ondelete="SET NULL"),
+        ForeignKey(
+            "learning_content.id",
+            ondelete="SET NULL",
+        ),
         nullable=True,
     )
 
@@ -94,18 +97,40 @@ class Question(Base):
         ),
     )
 
+    # ---------------------------------------------------------
+    # Relationship to Competency
+    # ---------------------------------------------------------
+
     competency = relationship(
         "Competency",
         back_populates="questions",
     )
+
+    # ---------------------------------------------------------
+    # Relationship to LearningContent
+    # ---------------------------------------------------------
 
     source_content = relationship(
         "LearningContent",
         back_populates="questions",
     )
 
+    # ---------------------------------------------------------
+    # Relationship to Answer
+    # ---------------------------------------------------------
+
     answers = relationship(
         "Answer",
+        back_populates="question",
+        cascade="all, delete-orphan",
+    )
+
+    # ---------------------------------------------------------
+    # Relationship to AssessmentQuestion
+    # ---------------------------------------------------------
+
+    assessment_questions = relationship(
+        "AssessmentQuestion",
         back_populates="question",
         cascade="all, delete-orphan",
     )
@@ -122,13 +147,19 @@ class Answer(Base):
 
     assessment_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("assessments.id", ondelete="CASCADE"),
+        ForeignKey(
+            "assessments.id",
+            ondelete="CASCADE",
+        ),
         nullable=False,
     )
 
     question_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("questions.id", ondelete="CASCADE"),
+        ForeignKey(
+            "questions.id",
+            ondelete="CASCADE",
+        ),
         nullable=False,
     )
 
@@ -157,10 +188,18 @@ class Answer(Base):
         "comment": "Stores one response per question per assessment"
     }
 
+    # ---------------------------------------------------------
+    # Relationship to Assessment
+    # ---------------------------------------------------------
+
     assessment = relationship(
         "Assessment",
         back_populates="answers",
     )
+
+    # ---------------------------------------------------------
+    # Relationship to Question
+    # ---------------------------------------------------------
 
     question = relationship(
         "Question",

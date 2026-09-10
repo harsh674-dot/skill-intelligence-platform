@@ -1,4 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+)
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -7,11 +11,20 @@ from app.models.competency import (
     RoleCompetency,
     UserCompetency,
 )
-from app.models.course import Course, CourseCompetency
+from app.models.course import (
+    Course,
+    CourseCompetency,
+)
 from app.models.learning import Recommendation
+from app.services.recommendation_engine import (
+    refresh_recommendations,
+)
 
 
-router = APIRouter(prefix="/recommendations", tags=["recommendations"])
+router = APIRouter(
+    prefix="/recommendations",
+    tags=["recommendations"],
+)
 
 
 @router.get("")
@@ -20,218 +33,135 @@ def get_recommendations(
     current_user=Depends(get_current_user),
 ):
     """
-    Generate personalized course recommendations based on:
+    Return fresh personalized recommendations.
 
-    1. User's competency gaps
-    2. Required competency level for the user's role
-    3. Competency priority
-    4. Course target level
+    Phase 5:
+    Recommendations are recalculated whenever this endpoint
+    is called so they always reflect the latest competency gaps.
     """
 
     if not current_user.job_role_id:
         raise HTTPException(
             status_code=400,
-            detail="User does not have a job role assigned.",
+            detail=(
+                "User does not have a job role assigned."
+            ),
         )
 
-    # ---------------------------------------------------------
-    # 1. Get role competency requirements
-    # ---------------------------------------------------------
-    role_competencies = (
-        db.query(RoleCompetency)
-        .filter(RoleCompetency.role_id == current_user.job_role_id)
+    refresh_recommendations(
+        db,
+        current_user,
+    )
+
+    recommendations = (
+        db.query(Recommendation)
+        .filter(
+            Recommendation.user_id
+            == current_user.id,
+            Recommendation.status.in_(
+                ["pending", "accepted"]
+            ),
+        )
         .all()
     )
 
-    if not role_competencies:
-        return {
-            "total_recommendations": 0,
-            "recommendations": [],
-        }
-
-    # ---------------------------------------------------------
-    # 2. Get user's current competency levels
-    # ---------------------------------------------------------
-    user_competencies = (
-        db.query(UserCompetency)
-        .filter(UserCompetency.user_id == current_user.id)
-        .all()
+    recommendations.sort(
+        key=lambda recommendation: (
+            -float(
+                recommendation.priority_score
+            ),
+            -float(
+                recommendation.gap_score
+            ),
+        )
     )
 
-    current_levels = {
-        uc.competency_id: uc.current_level
-        for uc in user_competencies
-    }
+    result = []
 
-    recommendations = []
+    for recommendation in recommendations:
 
-    # ---------------------------------------------------------
-    # 3. Process every competency gap
-    # ---------------------------------------------------------
-    for role_competency in role_competencies:
-
-        current_level = current_levels.get(
-            role_competency.competency_id,
-            1,
+        course = db.get(
+            Course,
+            recommendation.course_id,
         )
 
-        required_level = role_competency.required_level
-
-        gap = max(required_level - current_level, 0)
-
-        # No gap => no learning recommendation required
-        if gap == 0:
+        if not course:
             continue
 
-        # Competency priority
-        criticality_weight = 2 if role_competency.is_critical else 0
-
-        priority_score = (
-            (gap * 2)
-            + criticality_weight
-            + role_competency.organizational_priority
-        )
-
-        # -----------------------------------------------------
-        # 4. Find courses mapped to this competency
-        # -----------------------------------------------------
-        course_mappings = (
+        mapping = (
             db.query(CourseCompetency)
             .filter(
-        CourseCompetency.competency_id
-        == role_competency.competency_id,
-        CourseCompetency.target_level > current_level,
-)
-         .all()
+                CourseCompetency.course_id
+                == course.id,
+                CourseCompetency.competency_id
+                == recommendation.competency_id,
+            )
+            .first()
         )
 
-        if not course_mappings:
-            continue
-
-        # -----------------------------------------------------
-        # 5. Prefer courses that can actually reach the
-        #    required level
-        # -----------------------------------------------------
-        reaching_required = [
-            mapping
-            for mapping in course_mappings
-            if mapping.target_level >= required_level
-        ]
-
-        if reaching_required:
-            eligible_courses = reaching_required
-        else:
-            # No course reaches the required level.
-            # Use the highest available stepping-stone level.
-            highest_target = max(
-                mapping.target_level
-                for mapping in course_mappings
+        user_competency = (
+            db.query(UserCompetency)
+            .filter(
+                UserCompetency.user_id
+                == current_user.id,
+                UserCompetency.competency_id
+                == recommendation.competency_id,
             )
-
-            eligible_courses = [
-                mapping
-                for mapping in course_mappings
-                if mapping.target_level == highest_target
-            ]
-
-        # -----------------------------------------------------
-        # 6. Rank courses for this competency
-        # -----------------------------------------------------
-        eligible_courses.sort(
-            key=lambda mapping: (
-                abs(mapping.target_level - required_level),
-                -mapping.target_level,
-            )
+            .first()
         )
 
-        # -----------------------------------------------------
-        # 7. Create recommendation records
-        # -----------------------------------------------------
-        for mapping in eligible_courses:
-
-            course = db.get(Course, mapping.course_id)
-
-            if not course:
-                continue
-
-            recommendation = (
-                db.query(Recommendation)
-                .filter(
-                    Recommendation.user_id == current_user.id,
-                    Recommendation.course_id == course.id,
-                    Recommendation.competency_id
-                    == role_competency.competency_id,
-                )
-                .first()
+        role_competency = (
+            db.query(RoleCompetency)
+            .filter(
+                RoleCompetency.role_id
+                == current_user.job_role_id,
+                RoleCompetency.competency_id
+                == recommendation.competency_id,
             )
-
-            reason = (
-                f"Current level: {current_level}, "
-                f"Required level: {required_level}, "
-                f"Gap: {gap}, "
-                f"Course target level: {mapping.target_level}."
-            )
-
-            if recommendation:
-                recommendation.gap_score = gap
-                recommendation.priority_score = priority_score
-                recommendation.reason = reason
-                recommendation.status = "pending"
-            else:
-                recommendation = Recommendation(
-                    user_id=current_user.id,
-                    course_id=course.id,
-                    competency_id=role_competency.competency_id,
-                    gap_score=gap,
-                    priority_score=priority_score,
-                    reason=reason,
-                    status="pending",
-                )
-
-                db.add(recommendation)
-
-            recommendations.append(
-                {
-                    "recommendation_id": recommendation.id,
-                    "course_id": course.id,
-                    "course_title": course.title,
-                    "provider": course.provider,
-                    "competency_id": role_competency.competency_id,
-                    "current_level": current_level,
-                    "required_level": required_level,
-                    "course_target_level": mapping.target_level,
-                    "gap_score": gap,
-                    "priority_score": priority_score,
-                    "is_critical": role_competency.is_critical,
-                    "organizational_priority": (
-                        role_competency.organizational_priority
-                    ),
-                    "reason": reason,
-                }
-            )
-
-    db.commit()
-
-    # ---------------------------------------------------------
-    # 8. Global ranking
-    #
-    # Higher competency priority first.
-    # Within the same priority, prefer the course whose target
-    # level is closest to the required level.
-    # ---------------------------------------------------------
-    recommendations.sort(
-        key=lambda item: (
-            -item["priority_score"],
-            abs(
-                item["course_target_level"]
-                - item["required_level"]
-            ),
-            -item["course_target_level"],
-            item["course_title"],
+            .first()
         )
-    )
+
+        current_level = (
+            user_competency.current_level
+            if user_competency
+            else 1
+        )
+
+        required_level = (
+            role_competency.required_level
+            if role_competency
+            else current_level
+        )
+
+        result.append(
+            {
+                "recommendation_id": recommendation.id,
+                "course_id": course.id,
+                "course_title": course.title,
+                "provider": course.provider,
+                "course_url": course.url,
+                "competency_id": (
+                    recommendation.competency_id
+                ),
+                "current_level": current_level,
+                "required_level": required_level,
+                "course_target_level": (
+                    mapping.target_level
+                    if mapping
+                    else None
+                ),
+                "gap_score": float(
+                    recommendation.gap_score
+                ),
+                "priority_score": float(
+                    recommendation.priority_score
+                ),
+                "status": recommendation.status,
+                "reason": recommendation.reason,
+            }
+        )
 
     return {
-        "total_recommendations": len(recommendations),
-        "recommendations": recommendations,
+        "total_recommendations": len(result),
+        "recommendations": result,
     }

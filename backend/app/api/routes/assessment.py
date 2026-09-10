@@ -1,19 +1,43 @@
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal, ROUND_HALF_UP
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    status,
+)
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_current_user
+
 from app.models.assessment import Assessment
-from app.models.competency import RoleCompetency, UserCompetency
-from app.models.question import Answer, Question
+from app.models.assessment_question import (
+    AssessmentQuestion,
+)
+from app.models.competency import (
+    Competency,
+    RoleCompetency,
+    UserCompetency,
+)
+from app.models.course import CourseCompetency
+from app.models.question import (
+    Answer,
+    Question,
+)
 from app.models.user import User
+
 from app.schemas.assessment import (
     AnswerSubmitRequest,
     AnswerSubmitResponse,
+)
+
+from app.services.recommendation_engine import (
+    refresh_recommendations,
 )
 
 
@@ -23,24 +47,156 @@ router = APIRouter(
 )
 
 
+PROFICIENCY_LABELS = {
+    1: "Beginner",
+    2: "Basic",
+    3: "Intermediate",
+    4: "Advanced",
+    5: "Expert",
+}
+
+
+# =========================================================
+# HELPER — ACCURACY TO EVIDENCE LEVEL
+# =========================================================
+
+def evidence_to_level(
+    accuracy: float,
+) -> int:
+
+    if accuracy <= 20:
+        return 1
+
+    if accuracy <= 40:
+        return 2
+
+    if accuracy <= 60:
+        return 3
+
+    if accuracy <= 80:
+        return 4
+
+    return 5
+
+
+# =========================================================
+# HELPER — PHASE 5 COMPETENCY COMBINATION RULE
+# =========================================================
+
+def combine_competency_level(
+    previous_level: int,
+    evidence_level: int,
+) -> int:
+    """
+    Phase 5 documented rule:
+
+        Updated Level =
+            40% previous competency
+            +
+            60% new assessment evidence
+
+    New learning evidence receives more weight than
+    historical evidence.
+
+    Result is rounded using normal half-up rounding
+    and constrained to levels 1..5.
+    """
+
+    value = (
+        Decimal(previous_level)
+        * Decimal("0.40")
+        +
+        Decimal(evidence_level)
+        * Decimal("0.60")
+    )
+
+    result = int(
+        value.quantize(
+            Decimal("1"),
+            rounding=ROUND_HALF_UP,
+        )
+    )
+
+    return max(
+        1,
+        min(result, 5),
+    )
+
+
+# =========================================================
+# HELPER — PRIORITY
+# =========================================================
+
+def calculate_priority(
+    role_competency: RoleCompetency,
+    gap: int,
+) -> int:
+
+    if gap <= 0:
+        return 0
+
+    criticality_weight = (
+        2
+        if role_competency.is_critical
+        else 0
+    )
+
+    return (
+        (gap * 2)
+        + criticality_weight
+        + role_competency.organizational_priority
+    )
+
+
+# =========================================================
+# 30. BUILD QUIZ ATTEMPT FLOW
+# =========================================================
+
 @router.post(
     "/start",
     status_code=status.HTTP_201_CREATED,
 )
 def start_assessment(
     assessment_type: str = "initial",
-    current_user: User = Depends(get_current_user),
+    question_count: int = Query(
+        10,
+        ge=1,
+        le=50,
+    ),
+    course_id: uuid.UUID | None = None,
+    current_user: User = Depends(
+        get_current_user
+    ),
     db: Session = Depends(get_db),
 ):
+
     if assessment_type not in {
         "initial",
         "learning",
         "reassessment",
     }:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=400,
             detail="Invalid assessment type",
         )
+
+    if (
+        assessment_type in {
+            "learning",
+            "reassessment",
+        }
+        and not current_user.job_role_id
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "User does not have a job role assigned"
+            ),
+        )
+
+    # -----------------------------------------------------
+    # Create assessment
+    # -----------------------------------------------------
 
     assessment = Assessment(
         user_id=current_user.id,
@@ -49,16 +205,179 @@ def start_assessment(
     )
 
     db.add(assessment)
+    db.flush()
+
+    # -----------------------------------------------------
+    # Determine target competencies
+    # -----------------------------------------------------
+
+    competency_ids = []
+
+    if assessment_type in {
+        "learning",
+        "reassessment",
+    }:
+
+        # If quiz is opened from a recommended course,
+        # target that course's competencies first.
+        if course_id:
+
+            competency_ids = list(
+                db.scalars(
+                    select(
+                        CourseCompetency.competency_id
+                    ).where(
+                        CourseCompetency.course_id
+                        == course_id
+                    )
+                ).all()
+            )
+
+        # Otherwise target highest-priority gaps.
+        if not competency_ids:
+
+            role_competencies = db.scalars(
+                select(RoleCompetency).where(
+                    RoleCompetency.role_id
+                    == current_user.job_role_id
+                )
+            ).all()
+
+            ranked_competencies = []
+
+            for role_competency in (
+                role_competencies
+            ):
+
+                user_competency = db.scalar(
+                    select(UserCompetency).where(
+                        UserCompetency.user_id
+                        == current_user.id,
+                        UserCompetency.competency_id
+                        == role_competency.competency_id,
+                    )
+                )
+
+                current_level = (
+                    user_competency.current_level
+                    if user_competency
+                    else 1
+                )
+
+                gap = max(
+                    role_competency.required_level
+                    - current_level,
+                    0,
+                )
+
+                if gap > 0:
+
+                    priority = calculate_priority(
+                        role_competency,
+                        gap,
+                    )
+
+                    ranked_competencies.append(
+                        (
+                            priority,
+                            role_competency.competency_id,
+                        )
+                    )
+
+            ranked_competencies.sort(
+                reverse=True
+            )
+
+            competency_ids = [
+                competency_id
+                for _, competency_id
+                in ranked_competencies
+            ]
+
+    # -----------------------------------------------------
+    # Select questions
+    # -----------------------------------------------------
+
+    question_query = select(
+        Question
+    ).where(
+        Question.is_active.is_(True)
+    )
+
+    if competency_ids:
+
+        question_query = question_query.where(
+            Question.competency_id.in_(
+                competency_ids
+            )
+        )
+
+    questions = db.scalars(
+        question_query
+        .order_by(func.random())
+        .limit(question_count)
+    ).all()
+
+    if not questions:
+
+        db.rollback()
+
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "No suitable quiz questions found."
+            ),
+        )
+
+    # -----------------------------------------------------
+    # Attach questions to assessment
+    # -----------------------------------------------------
+
+    for question in questions:
+
+        db.add(
+            AssessmentQuestion(
+                assessment_id=assessment.id,
+                question_id=question.id,
+            )
+        )
+
     db.commit()
     db.refresh(assessment)
 
     return {
-        "message": "Assessment started successfully",
+        "message": (
+            "Assessment started successfully"
+        ),
         "assessment_id": assessment.id,
-        "assessment_type": assessment.assessment_type,
+        "assessment_type": (
+            assessment.assessment_type
+        ),
         "status": assessment.status,
+        "total_questions": len(questions),
+        "questions": [
+            {
+                "id": question.id,
+                "competency_id": (
+                    question.competency_id
+                ),
+                "question_text": (
+                    question.question_text
+                ),
+                "question_type": (
+                    question.question_type
+                ),
+                "difficulty": question.difficulty,
+                "options": question.options,
+            }
+            for question in questions
+        ],
     }
 
+
+# =========================================================
+# SUBMIT ANSWER
+# =========================================================
 
 @router.post(
     "/{assessment_id}/answers",
@@ -67,10 +386,12 @@ def start_assessment(
 def submit_answer(
     assessment_id: uuid.UUID,
     request: AnswerSubmitRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        get_current_user
+    ),
     db: Session = Depends(get_db),
 ):
-    # Check that the assessment belongs to the logged-in user
+
     assessment = db.scalar(
         select(Assessment).where(
             Assessment.id == assessment_id,
@@ -79,19 +400,42 @@ def submit_answer(
     )
 
     if not assessment:
+
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=404,
             detail="Assessment not found",
         )
 
-    # Assessment must still be in progress
     if assessment.status != "in_progress":
+
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Assessment is not in progress",
+            status_code=400,
+            detail=(
+                "Assessment is not in progress"
+            ),
         )
 
-    # Check that the question exists and is active
+    # IMPORTANT:
+    # User can only answer questions assigned to
+    # this particular assessment.
+    assigned_question = db.scalar(
+        select(AssessmentQuestion).where(
+            AssessmentQuestion.assessment_id
+            == assessment_id,
+            AssessmentQuestion.question_id
+            == request.question_id,
+        )
+    )
+
+    if not assigned_question:
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Question is not part of this assessment"
+            ),
+        )
+
     question = db.scalar(
         select(Question).where(
             Question.id == request.question_id,
@@ -100,65 +444,62 @@ def submit_answer(
     )
 
     if not question:
+
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=404,
             detail="Question not found",
         )
 
-    # Check whether this question already has an answer
-    existing_answer = db.scalar(
-        select(Answer).where(
-            Answer.assessment_id == assessment_id,
-            Answer.question_id == request.question_id,
-        )
+    selected_answer = (
+        request.selected_answer.strip()
     )
 
-    # ---------------------------------------------------------
-    # Determine whether the submitted answer is correct
-    # ---------------------------------------------------------
-    selected_answer = request.selected_answer.strip()
-    correct_answer = question.correct_answer.strip()
+    correct_answer = (
+        question.correct_answer.strip()
+    )
 
-    # The database stores the correct option key.
-    # Example:
-    #   correct_answer = "B"
-    #
-    # The question options may be:
-    #   {
-    #       "A": "Mean",
-    #       "B": "Median",
-    #       "C": "Mode"
-    #   }
-    #
-    # The user may submit either:
-    #   "B"
-    # or:
-    #   "Median"
     correct_option_text = str(
-        (question.options or {}).get(correct_answer, "")
+        (question.options or {}).get(
+            correct_answer,
+            "",
+        )
     ).strip()
 
     is_correct = (
-        selected_answer.casefold() == correct_answer.casefold()
-        or selected_answer.casefold()
+        selected_answer.casefold()
+        == correct_answer.casefold()
+        or
+        selected_answer.casefold()
         == correct_option_text.casefold()
     )
 
     score = 1 if is_correct else 0
 
-    # ---------------------------------------------------------
-    # Save or update answer
-    # ---------------------------------------------------------
+    existing_answer = db.scalar(
+        select(Answer).where(
+            Answer.assessment_id
+            == assessment_id,
+            Answer.question_id
+            == request.question_id,
+        )
+    )
+
     if existing_answer:
-        # Update existing answer
-        existing_answer.selected_answer = selected_answer
-        existing_answer.is_correct = is_correct
+
+        existing_answer.selected_answer = (
+            selected_answer
+        )
+
+        existing_answer.is_correct = (
+            is_correct
+        )
+
         existing_answer.score = score
 
         answer = existing_answer
 
     else:
-        # Create new answer
+
         answer = Answer(
             assessment_id=assessment_id,
             question_id=request.question_id,
@@ -176,20 +517,28 @@ def submit_answer(
         answer_id=answer.id,
         assessment_id=assessment_id,
         question_id=question.id,
-        selected_answer=answer.selected_answer,
+        selected_answer=(
+            answer.selected_answer
+        ),
         saved=True,
     )
 
+
+# =========================================================
+# FINISH ASSESSMENT
+# =========================================================
 
 @router.post(
     "/{assessment_id}/finish",
 )
 def finish_assessment(
     assessment_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        get_current_user
+    ),
     db: Session = Depends(get_db),
 ):
-    # Find the assessment belonging to the logged-in user
+
     assessment = db.scalar(
         select(Assessment).where(
             Assessment.id == assessment_id,
@@ -198,75 +547,110 @@ def finish_assessment(
     )
 
     if not assessment:
+
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=404,
             detail="Assessment not found",
         )
 
-    # Assessment must still be in progress
     if assessment.status != "in_progress":
+
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Assessment is not in progress",
+            status_code=400,
+            detail=(
+                "Assessment is not in progress"
+            ),
         )
 
-    # Get all active questions
-    questions = db.scalars(
-        select(Question).where(
-            Question.is_active.is_(True)
-        )
-    ).all()
-
-    # Get submitted answers
-    answers = db.scalars(
-        select(Answer).where(
-            Answer.assessment_id == assessment_id
-        )
-    ).all()
-
-    # Count correct submitted answers
-    correct_answers = sum(
-        1 for answer in answers if answer.is_correct
+    # Only questions assigned to this assessment.
+    question_ids = list(
+        db.scalars(
+            select(
+                AssessmentQuestion.question_id
+            ).where(
+                AssessmentQuestion.assessment_id
+                == assessment_id
+            )
+        ).all()
     )
 
-    total_questions = len(questions)
+    answers = db.scalars(
+        select(Answer).where(
+            Answer.assessment_id
+            == assessment_id
+        )
+    ).all()
+
+    total_questions = len(question_ids)
+
     total_answered = len(answers)
 
-    # Unanswered questions contribute 0 to final score
+    correct_answers = sum(
+        1
+        for answer in answers
+        if answer.is_correct
+    )
+
     score = (
-        (correct_answers / total_questions) * 100
-        if total_questions > 0
+        (
+            correct_answers
+            / total_questions
+        )
+        * 100
+        if total_questions
         else 0
     )
 
-    # Update assessment
     assessment.score = score
+
     assessment.status = "completed"
+
+    assessment.completed_at = (
+        datetime.now(timezone.utc)
+    )
 
     db.commit()
     db.refresh(assessment)
 
     return {
-        "message": "Assessment completed successfully",
+        "message": (
+            "Assessment completed successfully"
+        ),
         "assessment_id": assessment.id,
+        "assessment_type": (
+            assessment.assessment_type
+        ),
         "status": assessment.status,
         "total_questions": total_questions,
         "total_answered": total_answered,
-        "unanswered": total_questions - total_answered,
+        "unanswered": (
+            total_questions
+            - total_answered
+        ),
         "correct_answers": correct_answers,
         "score": round(score, 2),
     }
 
+
+# =========================================================
+# 31 + 32 + 33 + 34
+# SCORE POST-LEARNING ASSESSMENT
+# UPDATE COMPETENCY
+# RECALCULATE GAPS
+# REFRESH RECOMMENDATIONS
+# =========================================================
 
 @router.post(
     "/{assessment_id}/score",
 )
 def score_assessment(
     assessment_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        get_current_user
+    ),
     db: Session = Depends(get_db),
 ):
-    # Find the assessment belonging to the logged-in user
+
     assessment = db.scalar(
         select(Assessment).where(
             Assessment.id == assessment_id,
@@ -275,35 +659,46 @@ def score_assessment(
     )
 
     if not assessment:
+
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=404,
             detail="Assessment not found",
         )
 
-    # Scoring is allowed only after the assessment is completed
     if assessment.status != "completed":
+
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Assessment must be completed before scoring",
+            status_code=400,
+            detail=(
+                "Assessment must be completed "
+                "before scoring"
+            ),
         )
 
-    # Get all answers for this assessment
     answers = db.scalars(
         select(Answer).where(
-            Answer.assessment_id == assessment_id
+            Answer.assessment_id
+            == assessment_id
         )
     ).all()
 
     if not answers:
+
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No answers found for this assessment",
+            status_code=400,
+            detail=(
+                "No answers found for this assessment"
+            ),
         )
 
+    # -----------------------------------------------------
     # Group answers by competency
+    # -----------------------------------------------------
+
     competency_stats = {}
 
     for answer in answers:
+
         question = db.get(
             Question,
             answer.question_id,
@@ -312,105 +707,322 @@ def score_assessment(
         if not question:
             continue
 
-        competency_id = question.competency_id
-
-        if competency_id not in competency_stats:
-            competency_stats[competency_id] = {
+        stats = competency_stats.setdefault(
+            question.competency_id,
+            {
                 "total": 0,
                 "correct": 0,
-            }
+            },
+        )
 
-        competency_stats[competency_id]["total"] += 1
+        stats["total"] += 1
 
         if answer.is_correct:
-            competency_stats[competency_id]["correct"] += 1
+            stats["correct"] += 1
 
     results = []
 
-    for competency_id, stats in competency_stats.items():
+    # This gets persisted into Assessment.
+    before_after_snapshot = []
+
+    # -----------------------------------------------------
+    # Process every competency
+    # -----------------------------------------------------
+
+    for competency_id, stats in (
+        competency_stats.items()
+    ):
+
         total = stats["total"]
+
         correct = stats["correct"]
 
-        accuracy = (correct / total) * 100
+        accuracy = (
+            correct / total
+        ) * 100
 
-        # Deterministic accuracy -> proficiency level
-        if accuracy <= 20:
-            level = 1
-            proficiency = "Beginner"
+        evidence_level = evidence_to_level(
+            accuracy
+        )
 
-        elif accuracy <= 40:
-            level = 2
-            proficiency = "Basic"
+        # -------------------------------------------------
+        # Existing competency
+        # -------------------------------------------------
 
-        elif accuracy <= 60:
-            level = 3
-            proficiency = "Intermediate"
-
-        elif accuracy <= 80:
-            level = 4
-            proficiency = "Advanced"
-
-        else:
-            level = 5
-            proficiency = "Expert"
-
-        # Find user's existing competency record
         user_competency = db.scalar(
             select(UserCompetency).where(
-                UserCompetency.user_id == current_user.id,
-                UserCompetency.competency_id == competency_id,
+                UserCompetency.user_id
+                == current_user.id,
+                UserCompetency.competency_id
+                == competency_id,
             )
         )
 
+        previous_level = (
+            user_competency.current_level
+            if user_competency
+            else 1
+        )
+
+        # -------------------------------------------------
+        # Role requirement
+        # -------------------------------------------------
+
+        role_competency = db.scalar(
+            select(RoleCompetency).where(
+                RoleCompetency.role_id
+                == current_user.job_role_id,
+                RoleCompetency.competency_id
+                == competency_id,
+            )
+        )
+
+        required_level = (
+            role_competency.required_level
+            if role_competency
+            else previous_level
+        )
+
+        gap_before = max(
+            required_level
+            - previous_level,
+            0,
+        )
+
+        priority_before = (
+            calculate_priority(
+                role_competency,
+                gap_before,
+            )
+            if role_competency
+            else 0
+        )
+
+        # -------------------------------------------------
+        # PHASE 5 COMBINATION RULE
+        # -------------------------------------------------
+
+        if assessment.assessment_type in {
+            "learning",
+            "reassessment",
+        }:
+
+            updated_level = (
+                combine_competency_level(
+                    previous_level,
+                    evidence_level,
+                )
+            )
+
+        else:
+
+            # Initial assessment establishes baseline.
+            updated_level = evidence_level
+
+        # -------------------------------------------------
+        # Save updated competency
+        # -------------------------------------------------
+
         if user_competency:
-            # Update existing competency level
-            user_competency.current_level = level
-            user_competency.source = "assessment"
+
+            user_competency.current_level = (
+                updated_level
+            )
+
+            user_competency.source = (
+                "assessment"
+            )
+
             user_competency.last_assessed_at = (
                 datetime.now(timezone.utc)
             )
 
         else:
-            # Create competency record if it doesn't exist
+
             user_competency = UserCompetency(
                 user_id=current_user.id,
                 competency_id=competency_id,
-                current_level=level,
+                current_level=updated_level,
                 source="assessment",
-                last_assessed_at=datetime.now(timezone.utc),
+                last_assessed_at=(
+                    datetime.now(timezone.utc)
+                ),
             )
 
             db.add(user_competency)
 
-        results.append(
-            {
-                "competency_id": competency_id,
-                "total_questions": total,
-                "correct_answers": correct,
-                "accuracy": round(accuracy, 2),
-                "current_level": level,
-                "proficiency": proficiency,
-            }
+        # -------------------------------------------------
+        # New gap + priority
+        # -------------------------------------------------
+
+        gap_after = max(
+            required_level
+            - updated_level,
+            0,
         )
+
+        priority_after = (
+            calculate_priority(
+                role_competency,
+                gap_after,
+            )
+            if role_competency
+            else 0
+        )
+
+        competency = db.get(
+            Competency,
+            competency_id,
+        )
+
+        competency_name = (
+            competency.name
+            if competency
+            else str(competency_id)
+        )
+
+        # -------------------------------------------------
+        # IMPORTANT:
+        # JSONB cannot serialize Python UUID objects.
+        # Store competency_id as a string.
+        # -------------------------------------------------
+
+        result = {
+            "competency_id": str(
+                competency_id
+            ),
+
+            "competency_name": competency_name,
+
+            "total_questions": total,
+
+            "correct_answers": correct,
+
+            "accuracy": round(
+                accuracy,
+                2,
+            ),
+
+            "previous_level": (
+                previous_level
+            ),
+
+            "evidence_level": (
+                evidence_level
+            ),
+
+            "updated_level": (
+                updated_level
+            ),
+
+            "proficiency": (
+                PROFICIENCY_LABELS[
+                    updated_level
+                ]
+            ),
+
+            "improvement": (
+                updated_level
+                - previous_level
+            ),
+
+            "required_level": (
+                required_level
+            ),
+
+            "gap_before": (
+                gap_before
+            ),
+
+            "gap_after": (
+                gap_after
+            ),
+
+            "priority_before": (
+                priority_before
+            ),
+
+            "priority_after": (
+                priority_after
+            ),
+
+            "next_learning_target": (
+                required_level
+                if gap_after > 0
+                else "Maintain current level"
+            ),
+        }
+
+        results.append(result)
+
+        before_after_snapshot.append(
+            result
+        )
+
+    # -----------------------------------------------------
+    # Persist before/after result
+    # -----------------------------------------------------
+
+    assessment.competency_results = (
+        before_after_snapshot
+    )
 
     db.commit()
 
+    # -----------------------------------------------------
+    # 33 + 34
+    #
+    # Current UserCompetency values are now updated.
+    # Recalculate recommendations using the new gaps.
+    # -----------------------------------------------------
+
+    recommendation_refresh = (
+        refresh_recommendations(
+            db,
+            current_user,
+        )
+    )
+
     return {
-        "message": "Competency scoring completed successfully",
+        "message": (
+            "Post-learning assessment "
+            "scored successfully"
+        ),
+
         "assessment_id": assessment_id,
+
+        "assessment_type": (
+            assessment.assessment_type
+        ),
+
+        "combination_rule": (
+            "40% previous competency + "
+            "60% new assessment evidence"
+        ),
+
         "results": results,
+
+        "recommendations_refreshed": (
+            recommendation_refresh
+        ),
     }
 
 
+# =========================================================
+# 35. BEFORE / AFTER PROGRESS
+# =========================================================
+
 @router.get(
-    "/{assessment_id}/gaps",
+    "/{assessment_id}/progress",
 )
-def calculate_skill_gaps(
+def assessment_progress(
     assessment_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        get_current_user
+    ),
     db: Session = Depends(get_db),
 ):
-    # Check that the assessment belongs to the logged-in user
+
     assessment = db.scalar(
         select(Assessment).where(
             Assessment.id == assessment_id,
@@ -419,29 +1031,162 @@ def calculate_skill_gaps(
     )
 
     if not assessment:
+
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=404,
             detail="Assessment not found",
         )
 
-    # Assessment should be completed before calculating gaps
     if assessment.status != "completed":
+
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=400,
+            detail=(
+                "Assessment must be completed first"
+            ),
+        )
+
+    results = (
+        assessment.competency_results
+        or []
+    )
+
+    improved = [
+        result
+        for result in results
+        if result.get(
+            "improvement",
+            0,
+        ) > 0
+    ]
+
+    unchanged = [
+        result
+        for result in results
+        if result.get(
+            "improvement",
+            0,
+        ) == 0
+    ]
+
+    declined = [
+        result
+        for result in results
+        if result.get(
+            "improvement",
+            0,
+        ) < 0
+    ]
+
+    remaining_gaps = [
+        result
+        for result in results
+        if result.get(
+            "gap_after",
+            0,
+        ) > 0
+    ]
+
+    remaining_gaps.sort(
+        key=lambda result: (
+            -result.get(
+                "priority_after",
+                0,
+            ),
+            -result.get(
+                "gap_after",
+                0,
+            ),
+        )
+    )
+
+    next_learning_target = (
+        remaining_gaps[0]
+        if remaining_gaps
+        else None
+    )
+
+    return {
+        "assessment_id": assessment.id,
+
+        "assessment_type": (
+            assessment.assessment_type
+        ),
+
+        "overall_score": (
+            float(assessment.score)
+            if assessment.score is not None
+            else None
+        ),
+
+        "competencies_improved": len(
+            improved
+        ),
+
+        "competencies_unchanged": len(
+            unchanged
+        ),
+
+        "competencies_declined": len(
+            declined
+        ),
+
+        "next_learning_target": (
+            next_learning_target
+        ),
+
+        "before_after": results,
+    }
+
+
+# =========================================================
+# 33. RECALCULATE GAPS
+# =========================================================
+
+@router.get(
+    "/{assessment_id}/gaps",
+)
+def calculate_skill_gaps(
+    assessment_id: uuid.UUID,
+    current_user: User = Depends(
+        get_current_user
+    ),
+    db: Session = Depends(get_db),
+):
+
+    assessment = db.scalar(
+        select(Assessment).where(
+            Assessment.id == assessment_id,
+            Assessment.user_id == current_user.id,
+        )
+    )
+
+    if not assessment:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Assessment not found",
+        )
+
+    if assessment.status != "completed":
+
+        raise HTTPException(
+            status_code=400,
             detail=(
                 "Assessment must be completed "
                 "before calculating skill gaps"
             ),
         )
 
-    # User must have a job role
     if not current_user.job_role_id:
+
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User does not have a job role assigned",
+            status_code=400,
+            detail=(
+                "User does not have a job role assigned"
+            ),
         )
 
-    # Get required competency levels for user's role
     role_competencies = db.scalars(
         select(RoleCompetency).where(
             RoleCompetency.role_id
@@ -451,60 +1196,89 @@ def calculate_skill_gaps(
 
     gaps = []
 
-    for role_competency in role_competencies:
+    for role_competency in (
+        role_competencies
+    ):
 
-        # Get user's current competency level
         user_competency = db.scalar(
             select(UserCompetency).where(
-                UserCompetency.user_id == current_user.id,
+                UserCompetency.user_id
+                == current_user.id,
                 UserCompetency.competency_id
                 == role_competency.competency_id,
             )
         )
 
-        # If no assessment evidence exists,
-        # use Beginner (Level 1)
         current_level = (
             user_competency.current_level
             if user_competency
             else 1
         )
 
-        required_level = role_competency.required_level
+        required_level = (
+            role_competency.required_level
+        )
 
-        # Skill gap = required - current
         gap = max(
-            required_level - current_level,
+            required_level
+            - current_level,
             0,
         )
 
         gaps.append(
             {
-                "competency_id": role_competency.competency_id,
-                "required_level": required_level,
-                "current_level": current_level,
+                "competency_id": (
+                    role_competency.competency_id
+                ),
+                "required_level": (
+                    required_level
+                ),
+                "current_level": (
+                    current_level
+                ),
                 "gap": gap,
-                "is_critical": role_competency.is_critical,
+                "is_critical": (
+                    role_competency.is_critical
+                ),
             }
         )
 
+    # -----------------------------------------------------
+    # UUID-safe sorting
+    # -----------------------------------------------------
+
+    gaps.sort(
+        key=lambda item: (
+            -item["gap"],
+            str(item["competency_id"]),
+        )
+    )
+
     return {
-        "message": "Skill gaps calculated successfully",
+        "message": (
+            "Skill gaps calculated successfully"
+        ),
         "assessment_id": assessment_id,
         "role_id": current_user.job_role_id,
         "gaps": gaps,
     }
 
 
+# =========================================================
+# PRIORITY ENGINE
+# =========================================================
+
 @router.get(
     "/{assessment_id}/priority",
 )
 def calculate_priorities(
     assessment_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        get_current_user
+    ),
     db: Session = Depends(get_db),
 ):
-    # Check that the assessment belongs to the logged-in user
+
     assessment = db.scalar(
         select(Assessment).where(
             Assessment.id == assessment_id,
@@ -513,29 +1287,31 @@ def calculate_priorities(
     )
 
     if not assessment:
+
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=404,
             detail="Assessment not found",
         )
 
-    # Assessment must be completed
     if assessment.status != "completed":
+
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=400,
             detail=(
                 "Assessment must be completed "
                 "before calculating priorities"
             ),
         )
 
-    # User must have a job role
     if not current_user.job_role_id:
+
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User does not have a job role assigned",
+            status_code=400,
+            detail=(
+                "User does not have a job role assigned"
+            ),
         )
 
-    # Get role competency requirements
     role_competencies = db.scalars(
         select(RoleCompetency).where(
             RoleCompetency.role_id
@@ -545,71 +1321,74 @@ def calculate_priorities(
 
     priorities = []
 
-    for role_competency in role_competencies:
+    for role_competency in (
+        role_competencies
+    ):
 
-        # Get user's current competency level
         user_competency = db.scalar(
             select(UserCompetency).where(
-                UserCompetency.user_id == current_user.id,
+                UserCompetency.user_id
+                == current_user.id,
                 UserCompetency.competency_id
                 == role_competency.competency_id,
             )
         )
 
-        # Default to Beginner if no assessment evidence
         current_level = (
             user_competency.current_level
             if user_competency
             else 1
         )
 
-        required_level = role_competency.required_level
+        required_level = (
+            role_competency.required_level
+        )
 
-        # Calculate skill gap
         gap = max(
-            required_level - current_level,
+            required_level
+            - current_level,
             0,
         )
 
-        # Criticality weight
-        criticality_weight = (
-            2 if role_competency.is_critical else 0
-        )
-
-        # Organizational priority
-        organizational_priority = (
-            role_competency.organizational_priority
-        )
-
-        # Final priority score
-        priority_score = (
-            (gap * 2)
-            + criticality_weight
-            + organizational_priority
+        score = calculate_priority(
+            role_competency,
+            gap,
         )
 
         priorities.append(
             {
-                "competency_id": role_competency.competency_id,
-                "required_level": required_level,
-                "current_level": current_level,
-                "gap": gap,
-                "is_critical": role_competency.is_critical,
-                "organizational_priority": (
-                    organizational_priority
+                "competency_id": (
+                    role_competency.competency_id
                 ),
-                "priority_score": priority_score,
+                "required_level": (
+                    required_level
+                ),
+                "current_level": (
+                    current_level
+                ),
+                "gap": gap,
+                "is_critical": (
+                    role_competency.is_critical
+                ),
+                "organizational_priority": (
+                    role_competency
+                    .organizational_priority
+                ),
+                "priority_score": score,
             }
         )
 
-    # Highest priority first
     priorities.sort(
-        key=lambda item: item["priority_score"],
-        reverse=True,
+        key=lambda item: (
+            -item["priority_score"],
+            -item["gap"],
+        )
     )
 
     return {
-        "message": "Priority scoring completed successfully",
+        "message": (
+            "Priority scoring completed successfully"
+        ),
         "assessment_id": assessment_id,
         "role_id": current_user.job_role_id,
         "priorities": priorities,
