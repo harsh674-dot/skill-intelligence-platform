@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import confetti from "canvas-confetti";
 import {
   X,
-  CheckCircle2,
   AlertCircle,
   ArrowRight,
   Sparkles,
@@ -40,10 +39,7 @@ export default function AssessmentModal({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<{
-    is_correct: boolean;
-    explanation?: string;
-  } | null>(null);
+  const [answersSubmitted, setAnswersSubmitted] = useState<boolean>(false);
 
   const [completedResults, setCompletedResults] = useState<ScoreAssessmentResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,17 +64,13 @@ export default function AssessmentModal({
   const currentQ = questions[currentIndex];
 
   const handleSelectOption = async (optionKey: string) => {
-    if (submitting || feedback) return;
+    if (submitting || answersSubmitted) return;
     setSelectedOption(optionKey);
     setSubmitting(true);
 
     try {
       if (!assessmentId || !currentQ) return;
-      const res = await submitAnswer(token, assessmentId, currentQ.id, optionKey);
-      setFeedback({
-        is_correct: res.is_correct,
-        explanation: res.explanation || "Answer evaluated against competency benchmarks.",
-      });
+      await submitAnswer(token, assessmentId, currentQ.id, optionKey);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to submit answer.");
     } finally {
@@ -90,31 +82,33 @@ export default function AssessmentModal({
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setSelectedOption(null);
-      setFeedback(null);
     } else {
-      // Finish assessment
-      try {
-        setSubmitting(true);
-        if (!assessmentId) return;
-        await finishAssessment(token, assessmentId);
-        const scoreRes = await scoreAssessment(token, assessmentId);
-        setCompletedResults(scoreRes);
+      await finishAssessmentFlow();
+    }
+  };
 
-        // Trigger confetti celebration
-        try {
-          confetti({
-            particleCount: 100,
-            spread: 70,
-            origin: { y: 0.6 },
-          });
-        } catch {
-          // ignore if canvas unavailable
-        }
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Failed to finalize score.");
-      } finally {
-        setSubmitting(false);
+  const finishAssessmentFlow = async () => {
+    try {
+      setSubmitting(true);
+      if (!assessmentId) return;
+      await finishAssessment(token, assessmentId);
+      const scoreRes = await scoreAssessment(token, assessmentId);
+      setCompletedResults(scoreRes);
+      setAnswersSubmitted(true);
+
+      try {
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+        });
+      } catch {
+        // ignore if canvas unavailable
       }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to finalize score.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -265,25 +259,15 @@ export default function AssessmentModal({
               {currentQ &&
                 Object.entries(currentQ.options).map(([key, text]) => {
                   const isSelected = selectedOption === key;
-                  let optionStyles = "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/70 text-slate-800";
-
-                  if (feedback) {
-                    if (isSelected) {
-                      optionStyles = feedback.is_correct
-                        ? "bg-emerald-50 border-emerald-500 text-emerald-900 font-semibold"
-                        : "bg-rose-50 border-rose-500 text-rose-900 font-semibold";
-                    } else {
-                      optionStyles = "opacity-50 border-slate-200 text-slate-400";
-                    }
-                  } else if (isSelected) {
-                    optionStyles = "bg-indigo-50 border-indigo-600 text-indigo-950 font-semibold shadow-xs";
-                  }
+                  const optionStyles = isSelected
+                    ? "bg-indigo-50 border-indigo-600 text-indigo-950 font-semibold shadow-xs"
+                    : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/70 text-slate-800";
 
                   return (
                     <button
                       key={key}
                       onClick={() => handleSelectOption(key)}
-                      disabled={!!feedback || submitting}
+                      disabled={submitting || answersSubmitted}
                       className={`w-full p-3 rounded-xl text-left border text-sm transition-all flex items-start gap-3 ${optionStyles}`}
                     >
                       <span className="w-6 h-6 rounded-md bg-slate-100 border border-slate-200 flex items-center justify-center font-semibold text-xs shrink-0 mt-0.5 text-slate-700">
@@ -295,34 +279,8 @@ export default function AssessmentModal({
                 })}
             </div>
 
-            {/* Answer Feedback & Explanation */}
-            {feedback && (
-              <div
-                className={`p-4 rounded-xl border text-xs space-y-1 animate-in fade-in duration-150 ${
-                  feedback.is_correct
-                    ? "bg-emerald-50 border-emerald-200 text-emerald-900"
-                    : "bg-rose-50 border-rose-200 text-rose-900"
-                }`}
-              >
-                <div className="font-bold flex items-center gap-1.5">
-                  {feedback.is_correct ? (
-                    <>
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" /> {t.correctAnswer}
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle className="w-4 h-4 text-rose-600" /> {t.incorrectAnswer}
-                    </>
-                  )}
-                </div>
-                <p className="text-xs pt-1 leading-relaxed opacity-90">
-                  {feedback.explanation}
-                </p>
-              </div>
-            )}
-
             {/* Next / Finish Button */}
-            {feedback && (
+            {selectedOption && !answersSubmitted && (
               <button
                 onClick={handleNext}
                 disabled={submitting}
