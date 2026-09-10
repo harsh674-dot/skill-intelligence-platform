@@ -1,5 +1,7 @@
 from app.models.assessment import Assessment
 
+from app.models.assessment_question import AssessmentQuestion
+
 from app.models.competency import (
     Competency,
     RoleCompetency,
@@ -40,6 +42,7 @@ __all__ = [
     "Question",
     "Answer",
     "Assessment",
+    "AssessmentQuestion",
     "LearningContent",
     "AIGeneratedQuestion",
     "Progress",
