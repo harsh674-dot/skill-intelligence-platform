@@ -463,7 +463,7 @@ def get_admin_dashboard(
         "rejected": sum(1 for q in ai_questions if q.status == "rejected"),
     }
 
-    return {
+    admin_result = {
         "workforce_summary": {
             "total_employees": total_employees,
             "total_departments": len(dept_counts),
@@ -498,5 +498,6 @@ def get_admin_dashboard(
             "ai_questions": ai_stats,
         },
     }
+
     _ADMIN_DASHBOARD_CACHE["admin"] = (now, admin_result)
     return admin_result

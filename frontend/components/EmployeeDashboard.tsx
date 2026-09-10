@@ -15,7 +15,6 @@ import {
   X,
   ExternalLink,
   SlidersHorizontal,
-  ArrowUpRight,
   HelpCircle,
 } from "lucide-react";
 import { EmployeeDashboardData } from "@/lib/api";

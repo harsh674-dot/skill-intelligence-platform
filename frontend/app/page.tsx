@@ -44,21 +44,10 @@ export default function Home() {
     }, 3200);
   }, []);
 
-  // Check health and initialize default demo session (Ananya Sharma)
-  useEffect(() => {
-    getHealth()
-      .then(() => setIsBackendOnline(true))
-      .catch(() => setIsBackendOnline(false));
-
-    // Default to Ananya Sharma
-    handleSwitchPersona(DEMO_PERSONAS[0]);
-  }, []);
-
-  const handleSwitchPersona = async (persona: DemoPersona) => {
+  const handleSwitchPersona = useCallback(async (persona: DemoPersona) => {
     try {
       setDashboardError(null);
 
-      // 1. Optimistic instant UI update
       setCurrentUser({
         id: "demo-" + persona.email,
         email: persona.email,
@@ -66,7 +55,6 @@ export default function Home() {
         access_role: persona.access_role,
       });
 
-      // Auto-switch tabs based on persona
       if (persona.access_role === "admin") {
         setCurrentTab("admin");
       } else {
@@ -75,7 +63,6 @@ export default function Home() {
 
       showToast(`Active Persona: ${persona.name} (${persona.role})`);
 
-      // 2. Instant cache hydration (Stale-While-Revalidate)
       let hasCachedData = false;
       if (typeof window !== "undefined") {
         try {
@@ -91,7 +78,6 @@ export default function Home() {
         setLoadingDashboard(true);
       }
 
-      // 3. Fast token retrieval (use cached token or authenticate)
       let authToken = typeof window !== "undefined" ? sessionStorage.getItem("token_" + persona.email) : null;
       if (!authToken) {
         const authRes = await login(persona.email, "Demo@12345");
@@ -104,11 +90,10 @@ export default function Home() {
       }
       setToken(authToken);
 
-      // 4. Parallel fetch for profile and dashboard
       if (persona.access_role === "employee") {
         const [me, dash] = await Promise.all([
           getMe(authToken).catch(() => null),
-          getEmployeeDashboard(authToken).catch((err) => {
+          getEmployeeDashboard(authToken).catch((err: unknown) => {
             console.warn("Could not fetch employee dashboard:", err);
             return null;
           }),
@@ -127,31 +112,42 @@ export default function Home() {
         const me = await getMe(authToken).catch(() => null);
         if (me) setCurrentUser(me);
       }
-    } catch (err: any) {
-      setDashboardError(err.message || "Failed to switch persona.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to switch persona.";
+      setDashboardError(message);
     } finally {
       setLoadingDashboard(false);
     }
-  };
+  }, [showToast]);
 
-  const refreshDashboard = useCallback(async () => {
-    if (!token) return;
+  // Check health and initialize default demo session (Ananya Sharma)
+  useEffect(() => {
+    getHealth()
+      .then(() => setIsBackendOnline(true))
+      .catch(() => setIsBackendOnline(false));
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    handleSwitchPersona(DEMO_PERSONAS[0]);
+  }, [handleSwitchPersona]);
+
+  const refreshDashboard = async () => {
+    if (!token || !currentUser?.email) return;
     try {
       setLoadingDashboard(true);
       const dash = await getEmployeeDashboard(token);
       setDashboardData(dash);
       showToast("40/60 Rule Applied: Competency level updated & gaps refreshed!");
-      if (typeof window !== "undefined" && currentUser?.email) {
+      if (typeof window !== "undefined") {
         try {
           sessionStorage.setItem("cache_dash_" + currentUser.email, JSON.stringify(dash));
         } catch {}
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Dashboard refresh error:", err);
     } finally {
       setLoadingDashboard(false);
     }
-  }, [token, currentUser?.email, showToast]);
+  };
 
   const handleOpenAssessment = (courseId?: string) => {
     setAssessmentCourseId(courseId);

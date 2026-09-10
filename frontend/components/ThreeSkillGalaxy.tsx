@@ -54,10 +54,15 @@ export default function ThreeSkillGalaxy({
 
   const resetCameraRef = useRef<() => void>(() => {});
   const isRotatingRef = useRef<boolean>(true);
-  isRotatingRef.current = isRotating;
-
   const selectedDomainRef = useRef<string>("all");
-  selectedDomainRef.current = selectedDomain;
+
+  useEffect(() => {
+    isRotatingRef.current = isRotating;
+  }, [isRotating]);
+
+  useEffect(() => {
+    selectedDomainRef.current = selectedDomain;
+  }, [selectedDomain]);
 
   useEffect(() => {
     const container = containerRef.current;

@@ -56,8 +56,8 @@ export default function AssessmentModal({
         const res = await startAssessment(token, assessmentType, 5, courseId);
         setAssessmentId(res.assessment_id);
         setQuestions(res.questions);
-      } catch (err: any) {
-        setError(err.message || "Failed to start quiz.");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Failed to start quiz.");
       } finally {
         setLoading(false);
       }
@@ -79,8 +79,8 @@ export default function AssessmentModal({
         is_correct: res.is_correct,
         explanation: res.explanation || "Answer evaluated against competency benchmarks.",
       });
-    } catch (err: any) {
-      setError(err.message || "Failed to submit answer.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to submit answer.");
     } finally {
       setSubmitting(false);
     }
@@ -110,8 +110,8 @@ export default function AssessmentModal({
         } catch {
           // ignore if canvas unavailable
         }
-      } catch (err: any) {
-        setError(err.message || "Failed to finalize score.");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Failed to finalize score.");
       } finally {
         setSubmitting(false);
       }

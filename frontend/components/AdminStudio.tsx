@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Upload,
   FileText,
@@ -65,8 +65,7 @@ export default function AdminStudio({ token, onSwitchToAdmin }: AdminStudioProps
   const [editCompetencyId, setEditCompetencyId] = useState<string>("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Load initial content
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setIsAdminRequired(false);
       const [contents, qList, comps] = await Promise.all([
@@ -80,18 +79,20 @@ export default function AdminStudio({ token, onSwitchToAdmin }: AdminStudioProps
       }
       setAiQuestions(qList);
       setCompetencies(comps);
-    } catch (err: any) {
-      if (err.message?.includes("Admin access required") || err.message?.includes("403")) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      if (message.includes("Admin access required") || message.includes("403")) {
         setIsAdminRequired(true);
       } else {
         console.error("Error loading admin data:", err);
       }
     }
-  };
+  }, [token, selectedDocForGen]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData();
-  }, [token]);
+  }, [loadData]);
 
   // Load chunks when a material is selected
   useEffect(() => {
@@ -115,8 +116,9 @@ export default function AdminStudio({ token, onSwitchToAdmin }: AdminStudioProps
       setUploadSuccess(`Successfully ingested "${res.file_name}" into ${res.chunk_count} vector chunks!`);
       await loadData();
       setSelectedMaterialId(res.content_id);
-    } catch (err: any) {
-      setUploadError(err.message || "Upload failed.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Upload failed.";
+      setUploadError(message);
     } finally {
       setIsUploading(false);
     }
@@ -134,8 +136,9 @@ export default function AdminStudio({ token, onSwitchToAdmin }: AdminStudioProps
       setGenMessage(`Generated ${res.generated_count} MCQs grounded in RAG chunks! Added to review queue.`);
       await loadData();
       setActiveSubTab("review");
-    } catch (err: any) {
-      setGenMessage(`Generation error: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Generation error";
+      setGenMessage(`Generation error: ${message}`);
     } finally {
       setIsGenerating(false);
     }
@@ -149,7 +152,14 @@ export default function AdminStudio({ token, onSwitchToAdmin }: AdminStudioProps
     setActionLoading(questionId);
     try {
       const isEditing = editingQuestionId === questionId;
-      const payload: any = { status: decision };
+      const payload: {
+        status: "approved" | "rejected";
+        question_text?: string;
+        options?: Record<string, string>;
+        correct_answer?: string;
+        explanation?: string;
+        competency_id?: string;
+      } = { status: decision };
       if (isEditing) {
         if (editText) payload.question_text = editText;
         if (editExplanation) payload.explanation = editExplanation;
@@ -159,8 +169,9 @@ export default function AdminStudio({ token, onSwitchToAdmin }: AdminStudioProps
       await reviewAIQuestion(token, questionId, payload);
       setEditingQuestionId(null);
       await loadData();
-    } catch (err: any) {
-      alert(`Review action failed: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Review action failed";
+      alert(`Review action failed: ${message}`);
     } finally {
       setActionLoading(null);
     }
@@ -413,7 +424,7 @@ export default function AdminStudio({ token, onSwitchToAdmin }: AdminStudioProps
                 </label>
                 <select
                   value={genDifficulty}
-                  onChange={(e) => setGenDifficulty(e.target.value as any)}
+                  onChange={(e) => setGenDifficulty(e.target.value as "beginner" | "intermediate" | "advanced")}
                   className="w-full p-2.5 rounded-xl bg-white border border-slate-300 text-slate-900 focus:border-indigo-600 outline-none"
                 >
                   <option value="beginner">{t.diffBeginner}</option>
