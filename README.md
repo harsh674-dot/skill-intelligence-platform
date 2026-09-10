@@ -16,3 +16,5 @@ The platform identifies competency gaps, recommends personalized learning resour
 ## Project Status
 
 Phase 1 — Foundation
+
+Phase 2 - Competency Engine

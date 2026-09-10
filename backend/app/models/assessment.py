@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from sqlalchemy.dialects.postgresql import JSONB
 
 from sqlalchemy import (
     CheckConstraint,
@@ -45,6 +46,10 @@ class Assessment(Base):
         Numeric(5, 2),
         nullable=True,
     )
+    competency_results: Mapped[list | None] = mapped_column(
+        JSONB,
+        nullable=True,
+    )
 
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -81,6 +86,11 @@ class Assessment(Base):
     # Relationship to Answer
     answers = relationship(
         "Answer",
+        back_populates="assessment",
+        cascade="all, delete-orphan",
+    )
+    assessment_questions = relationship(
+        "AssessmentQuestion",
         back_populates="assessment",
         cascade="all, delete-orphan",
     )
