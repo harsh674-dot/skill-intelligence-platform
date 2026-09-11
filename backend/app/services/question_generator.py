@@ -7,6 +7,7 @@ Uses:
 Generates varied MCQs from supplied learning content.
 """
 
+import random
 import re
 from typing import Any
 
@@ -309,10 +310,6 @@ def _fallback_mcq(
     question_number: int = 1,
 ) -> dict[str, Any]:
 
-    # --------------------------------------------------------
-    # Extract useful sentences from the content.
-    # --------------------------------------------------------
-
     sentences = [
         _clean_text(x)
         for x in re.split(
@@ -328,30 +325,39 @@ def _fallback_mcq(
             "the concepts discussed in the learning material"
         ]
 
-    # Pick different material for different questions.
     sentence = sentences[
         (question_number - 1) % len(sentences)
     ]
 
-    # --------------------------------------------------------
-    # Create a safer fallback.
-    # --------------------------------------------------------
+    option_a = sentence
+    distractors = [
+        "A concept contradicted by the provided learning material.",
+        "An unrelated concept not mentioned in the material.",
+        "A partial truth that does not fully answer the question.",
+    ]
+
+    options = {
+        "A": option_a,
+        "B": distractors[0],
+        "C": distractors[1],
+        "D": distractors[2],
+    }
+
+    keys = list(options.keys())
+    random.shuffle(keys)
+    shuffled_options = {key: options[key] for key in keys}
+    correct_key = next(key for key, value in shuffled_options.items() if value == option_a)
 
     return {
         "question_text": (
-            f"Which statement is supported by the "
+            f"Which statement is best supported by the "
             f"learning material regarding: {sentence}?"
         ),
-        "options": {
-            "A": sentence,
-            "B": "The material provides no information about this topic.",
-            "C": "The topic refers only to an unrelated physical object.",
-            "D": "The topic describes an unrelated historical event.",
-        },
-        "correct_answer": "A",
+        "options": shuffled_options,
+        "correct_answer": correct_key,
         "explanation": (
-            "Option A is supported directly by the provided "
-            "learning material."
+            "The correct answer is directly supported by the "
+            "provided learning material."
         ),
         "difficulty": difficulty,
     }

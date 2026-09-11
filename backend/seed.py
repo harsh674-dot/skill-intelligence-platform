@@ -1,3 +1,4 @@
+import random
 import uuid
 
 from sqlalchemy import select
@@ -531,12 +532,61 @@ QUESTION_TEMPLATES = {
 
 
 def make_question_data(competency_name, index, question_text, answer, difficulty):
-    # Keep four MCQ options while making the correct option deterministic.
-    distractors = [
-        "None of the above",
-        "A different unrelated concept",
-        "An incorrect alternative",
-    ]
+    # Build four MCQ options with plausible, domain-specific distractors.
+    # The correct answer is shuffled into a random position so it is
+    # not always option A.
+    domain = next(
+        (d for n, d, _ in COMPETENCIES if n == competency_name),
+        "General",
+    )
+
+    distractor_pool = {
+        "Statistical": [
+            "An outdated method no longer recommended for official statistics",
+            "A technique used mainly for qualitative research",
+            "A measure that applies only to census data",
+            "A concept from experimental rather than survey design",
+            "A method requiring complete population enumeration",
+        ],
+        "Technical": [
+            "A manual spreadsheet-based approach",
+            "A function from a different library with unrelated behaviour",
+            "A concept that applies only to unstructured text data",
+            "A legacy approach replaced by modern frameworks",
+            "A technique for static reporting rather than interactive analysis",
+        ],
+        "Digital Governance": [
+            "A consumer-grade technology without government safeguards",
+            "A manual process that does not require digital infrastructure",
+            "A practice applicable only to private-sector organisations",
+            "A protocol that replaces rather than complements existing standards",
+            "A concept from physical rather than digital security",
+        ],
+        "Behavioural": [
+            "An individual preference unrelated to organisational outcomes",
+            "A short-term tactic rather than a sustained capability",
+            "A skill that applies only to external stakeholder communication",
+            "An innate trait that cannot be developed through training",
+            "A theoretical concept with no practical application",
+        ],
+        "Managerial": [
+            "An ad-hoc activity rather than a structured process",
+            "A one-time event rather than a recurring governance mechanism",
+            "A financial metric rather than a project oversight tool",
+            "An individual task rather than a team coordination activity",
+            "A static plan that does not adapt to changing requirements",
+        ],
+    }.get(domain, [
+        "An outdated approach no longer considered best practice",
+        "A narrow view that ignores broader context",
+        "A method that applies only to idealised conditions",
+        "A theoretical concept with limited practical use",
+        "An alternative that contradicts standard frameworks",
+    ])
+
+    import random
+
+    distractors = random.sample(distractor_pool, k=min(3, len(distractor_pool)))
     options = {
         "A": answer,
         "B": distractors[0],
@@ -544,13 +594,18 @@ def make_question_data(competency_name, index, question_text, answer, difficulty
         "D": distractors[2],
     }
 
+    keys = list(options.keys())
+    random.shuffle(keys)
+    shuffled_options = {key: options[key] for key in keys}
+    correct_key = next(key for key, value in shuffled_options.items() if value == answer)
+
     return {
         "competency": competency_name,
         "question_text": question_text,
         "question_type": "mcq",
         "difficulty": difficulty,
-        "options": options,
-        "correct_answer": "A",
+        "options": shuffled_options,
+        "correct_answer": correct_key,
         "explanation": answer,
     }
 
