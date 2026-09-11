@@ -595,8 +595,9 @@ def make_question_data(competency_name, index, question_text, answer, difficulty
     }
 
     keys = list(options.keys())
-    random.shuffle(keys)
-    shuffled_options = {key: options[key] for key in keys}
+    values = list(options.values())
+    random.shuffle(values)
+    shuffled_options = dict(zip(keys, values))
     correct_key = next(key for key, value in shuffled_options.items() if value == answer)
 
     return {
