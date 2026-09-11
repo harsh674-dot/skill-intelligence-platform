@@ -369,6 +369,7 @@ def start_assessment(
                 ),
                 "difficulty": question.difficulty,
                 "options": question.options,
+                "correct_answer": question.correct_answer,
             }
             for question in questions
         ],
