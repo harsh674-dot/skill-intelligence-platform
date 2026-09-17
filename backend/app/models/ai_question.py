@@ -61,6 +61,12 @@ class AIGeneratedQuestion(Base):
         default="beginner",
     )
 
+    bloom_tag: Mapped[str | None] = mapped_column(
+        String(30),
+        nullable=True,
+        comment="Bloom's Taxonomy cognitive level: remember | understand | apply | analyze | evaluate | create",
+    )
+
     options: Mapped[dict] = mapped_column(
         JSONB,
         nullable=False,
@@ -107,7 +113,7 @@ class AIGeneratedQuestion(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "question_type IN ('mcq')",
+            "question_type IN ('mcq', 'true_false', 'fill_blank', 'short_answer')",
             name="check_ai_question_type",
         ),
         CheckConstraint(
@@ -117,6 +123,11 @@ class AIGeneratedQuestion(Base):
         CheckConstraint(
             "status IN ('pending', 'approved', 'rejected')",
             name="check_ai_question_status",
+        ),
+        CheckConstraint(
+            "bloom_tag IS NULL OR bloom_tag IN "
+            "('remember', 'understand', 'apply', 'analyze', 'evaluate', 'create')",
+            name="check_ai_question_bloom_tag",
         ),
     )
 

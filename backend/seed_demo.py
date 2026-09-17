@@ -13,6 +13,10 @@ from app.models.question import Question
 from app.models.assessment import Assessment
 from app.models.question import Answer
 from app.models.learning import LearningContent, Progress, Recommendation
+from app.models.chat import ChatSession, ChatMessage
+from app.models.community import Post, Comment, Like
+from app.models.experience_review import ExperienceReview
+from app.models.course_review import CourseReview
 from app.security import hash_password
 
 # Reuse the master data already maintained by seed.py.
@@ -629,6 +633,169 @@ def seed_demo():
 
         print(f"Learning progress records created: {progress_count}")
 
+        # ============================================================
+        # 1. AI CHATBOT SESSIONS & MESSAGES SEED
+        # ============================================================
+        chat_count = 0
+        ananya = user_map.get("ananya.sharma@demo.gov.in")
+        if ananya:
+            demo_session_title = "Upskilling in Python and Survey Sampling"
+            existing_session = db.scalar(
+                select(ChatSession).where(
+                    ChatSession.user_id == ananya.id,
+                    ChatSession.title == demo_session_title,
+                )
+            )
+            if not existing_session:
+                session = ChatSession(
+                    id=uuid.uuid4(),
+                    user_id=ananya.id,
+                    title=demo_session_title,
+                )
+                db.add(session)
+                db.flush()
+
+                msg1 = ChatMessage(
+                    id=uuid.uuid4(),
+                    session_id=session.id,
+                    user_id=ananya.id,
+                    role="user",
+                    content="What courses should I take to improve my Python programming and survey sampling skills?",
+                )
+                msg2 = ChatMessage(
+                    id=uuid.uuid4(),
+                    session_id=session.id,
+                    user_id=ananya.id,
+                    role="assistant",
+                    content="Based on your current competency assessment, you have an identified gap in Survey Design (Level 2 vs required Level 4) and Advanced Python (Level 2 vs required Level 3). I recommend starting with 'Python for Statistical Computing and Data Wrangling' followed by 'Advanced Survey Sampling & Estimation Techniques' on iGOT Karmayogi.",
+                )
+                db.add_all([msg1, msg2])
+                chat_count += 1
+
+        # ============================================================
+        # 2. COMMUNITY POSTS, COMMENTS & LIKES SEED
+        # ============================================================
+        post_count = 0
+        priya = user_map.get("priya.nair@demo.gov.in")
+        rahul = user_map.get("rahul.verma@demo.gov.in")
+        if priya and rahul and ananya:
+            existing_post = db.scalar(
+                select(Post).where(Post.author_id == priya.id)
+            )
+            if not existing_post:
+                post1 = Post(
+                    id=uuid.uuid4(),
+                    author_id=priya.id,
+                    title="Key Insights on SNA 2008 GVA Estimation Methodologies",
+                    body="Hello colleagues! While working on the National Accounts aggregates, following the basic vs producer prices guidelines in SNA 2008 reduced compilation errors significantly. Happy to share templates with the team!",
+                    tags=["National Accounts", "SNA 2008", "Best Practices"],
+                )
+                post2 = Post(
+                    id=uuid.uuid4(),
+                    author_id=rahul.id,
+                    title="Vectorized aggregations with pandas for ASI Data Cleaning",
+                    body="For those processing Annual Survey of Industries microdata, using vectorized pandas.groupby() with categorical dtypes yielded an 8x throughput improvement over standard iteration.",
+                    tags=["Python", "Data Cleaning", "Pandas"],
+                )
+                db.add_all([post1, post2])
+                db.flush()
+
+                c1 = Comment(
+                    id=uuid.uuid4(),
+                    post_id=post1.id,
+                    author_id=ananya.id,
+                    body="Thanks Priya, this is very relevant for the upcoming state statistical workshop!",
+                )
+                c2 = Comment(
+                    id=uuid.uuid4(),
+                    post_id=post2.id,
+                    author_id=ananya.id,
+                    body="Great tip Rahul! Did you use chunked reads for larger CSVs?",
+                )
+                db.add_all([c1, c2])
+
+                l1 = Like(id=uuid.uuid4(), post_id=post1.id, user_id=ananya.id)
+                l2 = Like(id=uuid.uuid4(), post_id=post1.id, user_id=rahul.id)
+                l3 = Like(id=uuid.uuid4(), post_id=post2.id, user_id=priya.id)
+                db.add_all([l1, l2, l3])
+                post_count += 2
+
+        # ============================================================
+        # 3. EMPLOYEE EXPERIENCE REVIEWS SEED
+        # ============================================================
+        exp_review_count = 0
+        if ananya and rahul and priya:
+            demo_exp_specs = [
+                (ananya.id, "platform", 5, "The 3D Skill Galaxy and AI diagnostic quizzes make targeted upskilling effortless."),
+                (rahul.id, "training_program", 4, "Courseware is very high quality and aligns well with Ministry data governance standards."),
+                (priya.id, "onboarding", 5, "Smooth role alignment and competency benchmarking from day one."),
+            ]
+            for u_id, cat, rating, comm in demo_exp_specs:
+                already_exists = db.scalar(
+                    select(ExperienceReview).where(
+                        ExperienceReview.user_id == u_id,
+                        ExperienceReview.category == cat,
+                    )
+                )
+                if not already_exists:
+                    db.add(
+                        ExperienceReview(
+                            id=uuid.uuid4(),
+                            user_id=u_id,
+                            category=cat,
+                            rating=rating,
+                            comments=comm,
+                        )
+                    )
+                    exp_review_count += 1
+
+        # ============================================================
+        # 4. COURSE HELPFULNESS REVIEWS SEED
+        # ============================================================
+        course_review_count = 0
+        if all_courses and ananya and priya:
+            completed_courses = db.scalars(
+                select(Course).join(Progress, Progress.course_id == Course.id).where(
+                    Progress.status == "completed"
+                )
+            ).all()
+
+            if completed_courses:
+                c1_exists = db.scalar(
+                    select(CourseReview).where(
+                        CourseReview.user_id == ananya.id,
+                        CourseReview.course_id == completed_courses[0].id,
+                    )
+                )
+                if not c1_exists:
+                    c_rev1 = CourseReview(
+                        id=uuid.uuid4(),
+                        user_id=ananya.id,
+                        course_id=completed_courses[0].id,
+                        helpfulness_rating=5,
+                        comments="Practical and directly applicable to official statistical sampling workflows.",
+                    )
+                    db.add(c_rev1)
+                    course_review_count += 1
+
+            if len(completed_courses) > 1:
+                c2_exists = db.scalar(
+                    select(CourseReview).where(
+                        CourseReview.user_id == priya.id,
+                        CourseReview.course_id == completed_courses[1].id,
+                    )
+                )
+                if not c2_exists:
+                    c_rev2 = CourseReview(
+                        id=uuid.uuid4(),
+                        user_id=priya.id,
+                        course_id=completed_courses[1].id,
+                        helpfulness_rating=5,
+                        comments="Extremely helpful material for National Accounts calculations and standards.",
+                    )
+                    db.add(c_rev2)
+                    course_review_count += 1
+
         db.commit()
 
         print()
@@ -642,6 +809,10 @@ def seed_demo():
         print(f"Answers:                {answer_count}")
         print(f"Recommendations:        {recommendation_count}")
         print(f"Progress records:       {progress_count}")
+        print(f"Chatbot Sessions:       {chat_count}")
+        print(f"Community Posts:        {post_count}")
+        print(f"Experience Reviews:     {exp_review_count}")
+        print(f"Course Reviews:         {course_review_count}")
         print()
         print("Demo login password for all demo employees: Demo@12345")
         print("=" * 50)

@@ -1,0 +1,24 @@
+{
+  "name": "Skill Intelligence Platform",
+  "short_name": "SkillIntel",
+  "description": "AI-Powered Competency Modeling, Skill-Gap Engine & Closed-Loop Learning",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#1e1b4b",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

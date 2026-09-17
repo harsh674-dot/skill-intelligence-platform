@@ -305,7 +305,9 @@ def start_assessment(
     )
 
     if competency_ids:
-
+        # Simple adaptive logic: try to pick questions that match the gap levels
+        # Assuming we just need to target those competencies for now,
+        # an advanced implementation would filter by Question.difficulty.
         question_query = question_query.where(
             Question.competency_id.in_(
                 competency_ids
@@ -1417,4 +1419,61 @@ def calculate_priorities(
         "assessment_id": assessment_id,
         "role_id": current_user.job_role_id,
         "priorities": priorities,
+    }
+
+
+# =========================================================
+# ASSESSMENT HISTORY
+# =========================================================
+
+@router.get(
+    "/history",
+)
+def get_assessment_history(
+    current_user: User = Depends(
+        get_current_user
+    ),
+    db: Session = Depends(get_db),
+):
+    """Get all assessments taken by the current user."""
+    assessments = (
+        db.query(Assessment)
+        .filter(Assessment.user_id == current_user.id)
+        .order_by(Assessment.started_at.desc())
+        .all()
+    )
+
+    result = []
+    for a in assessments:
+        total_questions = (
+            db.query(AssessmentQuestion)
+            .filter(
+                AssessmentQuestion.assessment_id
+                == a.id
+            )
+            .count()
+        )
+        answered = (
+            db.query(Answer)
+            .filter(
+                Answer.assessment_id == a.id
+            )
+            .count()
+        )
+        result.append(
+            {
+                "assessment_id": a.id,
+                "assessment_type": a.assessment_type,
+                "status": a.status,
+                "score": float(a.score) if a.score is not None else None,
+                "total_questions": total_questions,
+                "answered_questions": answered,
+                "started_at": a.started_at,
+                "completed_at": a.completed_at,
+            }
+        )
+
+    return {
+        "total_assessments": len(result),
+        "assessments": result,
     }

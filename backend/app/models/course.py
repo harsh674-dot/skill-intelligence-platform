@@ -104,6 +104,11 @@ class Course(Base):
         cascade="all, delete-orphan",
     )
 
+    learning_events = relationship(
+        "LearningEvent",
+        back_populates="course",
+    )
+
 
 class CourseCompetency(Base):
     __tablename__ = "course_competencies"

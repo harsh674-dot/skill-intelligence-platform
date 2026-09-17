@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict
 
 
@@ -19,3 +18,25 @@ class CourseResponse(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+
+class CourseCreateRequest(BaseModel):
+    title: str
+    description: str | None = None
+    provider: str | None = None
+    source: str = "admin_upload"
+    external_id: str | None = None
+    url: str | None = None
+    duration_minutes: int | None = None
+    level: str | None = None
+
+
+class CourseUpdateRequest(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    provider: str | None = None
+    source: str | None = None
+    external_id: str | None = None
+    url: str | None = None
+    duration_minutes: int | None = None
+    level: str | None = None

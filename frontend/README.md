@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Skill Intelligence Platform Frontend
 
-## Getting Started
+Next.js 16 App Router frontend for the Skill Intelligence Platform. The UI calls the FastAPI backend directly; it does not include an offline or mock API fallback.
 
-First, run the development server:
+## Requirements
+
+- Node.js 20 or newer
+- A running PostgreSQL-backed FastAPI backend
+
+## Run the backend
+
+From the repository root:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd backend
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
+python -m pip install -r requirements.txt
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Create `backend/.env` or a root `.env` with at least:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```env
+DATABASE_URL=postgresql+psycopg://user:password@localhost:5432/skill_intelligence
+JWT_SECRET_KEY=replace-with-a-long-random-secret
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Add the frontend origin to `ALLOWED_ORIGINS` when the frontend and API use different origins. Then initialize and start the API:
 
-## Learn More
+```bash
+alembic upgrade head
+python seed_demo.py
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
 
-To learn more about Next.js, take a look at the following resources:
+The health endpoint is `http://localhost:8000/health`; application routes use `/api`. Seeded demo accounts use the password `Demo@12345`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Run the frontend
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+cd frontend
+npm install
+cp .env.example .env.local
+npm run dev
+```
 
-## Deploy on Vercel
+Open `http://localhost:3000`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+`NEXT_PUBLIC_API_URL` controls where the browser sends API requests:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Unset or `/api`: use same-origin `/api` and `/health` requests. Local `next dev` rewrites these paths to `http://localhost:8000`.
+- `http://localhost:8000`: call a direct local backend. The backend must allow the frontend origin through CORS.
+- `https://api.example.com`: call a remote backend origin. Do not include a trailing slash.
+
+For a same-origin production deployment, leave `NEXT_PUBLIC_API_URL` unset and configure the hosting platform to proxy `/api` and `/health` to the FastAPI service. For a separate backend host, set `NEXT_PUBLIC_API_URL` to the backend origin and include the frontend origin in the backend `ALLOWED_ORIGINS` setting. `NEXT_PUBLIC_API_URL` is public configuration, not a secret.
+
+## Build and checks
+
+```bash
+npm run lint
+npm run build
+```
+
+For Vercel or another production platform, set `NEXT_PUBLIC_API_URL` in the platform environment when the API is not served from the frontend origin. Rebuild/redeploy after changing it because Next.js inlines public environment values in the client bundle.

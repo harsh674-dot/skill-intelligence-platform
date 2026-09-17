@@ -10,10 +10,13 @@ India's Official Statistical System requires continuous upskilling across divers
 
 - **Competency Engine** — Define and manage competencies, roles, and proficiency frameworks.
 - **AI-Powered Assessments** — Generate questions from uploaded documents/learning materials using LLMs.
+- **Hidden-Feedback Quiz** — 15-question assessments that hide per-question correctness until the end, then show full answer review.
+- **Closed-Loop Learning** — 40/60 Rule reassessment with competency level upgrades.
 - **Personalized Learning** — Recommend courses and content based on competency gaps and role requirements.
+- **Employee Self-Registration** — New employees can register via the Navbar with role selection.
 - **Search & Vector RAG** — Semantic search over learning content and document embeddings.
 - **Dashboard & Analytics** — Workforce analytics, progress tracking, and gap heatmaps.
-- **Role-Based Access** — JWT-secured auth for Admin, Manager, and Employee personas.
+- **Role-Based Access** — JWT-secured auth for Admin and Employee personas.
 - **3D Interactive UI** — Three.js-powered galaxy visualization for skill exploration.
 - **Offline Demo Fallback** — Vercel-ready frontend with demo mode for showcases.
 
@@ -48,6 +51,8 @@ skill-intelligence-platform/
 │   ├── app/
 │   │   ├── layout.tsx
 │   │   ├── page.tsx
+│   │   ├── community/
+│   │   │   └── page.tsx
 │   │   └── globals.css
 │   ├── components/
 │   │   ├── ThreeSkillGalaxy.tsx
@@ -55,6 +60,11 @@ skill-intelligence-platform/
 │   │   ├── EmployeeDashboard.tsx
 │   │   ├── WorkforceAnalytics.tsx
 │   │   ├── AssessmentModal.tsx
+│   │   ├── ChatbotWidget.tsx
+│   │   ├── CommunityFeed.tsx
+│   │   ├── PostThread.tsx
+│   │   ├── ExperienceReviewForm.tsx
+│   │   ├── CourseReviewModal.tsx
 │   │   ├── JudgeTourGuide.tsx
 │   │   └── Navbar.tsx
 │   ├── context/
@@ -82,7 +92,10 @@ skill-intelligence-platform/
 │   │   │   │   ├── dashboard.py
 │   │   │   │   ├── learning.py
 │   │   │   │   ├── search.py
-│   │   │   │   └── ai_questions.py
+│   │   │   │   ├── ai_questions.py
+│   │   │   │   ├── chatbot.py
+│   │   │   │   ├── community.py
+│   │   │   │   └── experience_reviews.py
 │   │   ├── models/
 │   │   ├── schemas/
 │   │   ├── services/
@@ -174,23 +187,26 @@ Open `http://localhost:3000`.
 |--------|---------|
 | `/api/health` | Health checks |
 | `/api/auth` | Login, register, token refresh |
-| `/api/competency` | Competency CRUD |
-| `/api/roles` | Role management |
+| `/api/competencies` | Competency CRUD |
+| `/api/roles` | Role management (public read) |
 | `/api/courses` | Course catalog |
-| `/api/questions` | Question bank |
-| `/api/assessment` | Assessment lifecycle |
-| `/api/recommendations` | AI recommendations |
+| `/api/questions` | Question bank (102 seeded MCQs) |
+| `/api/assessments` | Start, submit answers, finish, score |
+| `/api/ai-questions` | AI question review and bulk generation |
+| `/api/recommendations` | Personalized course suggestions |
 | `/api/dashboard` | Analytics endpoints |
 | `/api/learning` | Learning path & progress |
 | `/api/search` | Semantic content search |
-| `/api/ai-questions` | AI-generated questions |
+| `/api/chatbot` | RAG-grounded AI upskilling chatbot & multi-turn history |
+| `/api/community` | Employee interaction space (posts, comments, likes & admin moderation) |
+| `/api/experience-reviews` | Experience surveys & role-restricted aggregated analytics |
 
 ## Database
 
 - **SQLAlchemy 2.0** ORM with declarative models.
 - **Alembic** for schema migrations.
 - **pgvector** for embedding storage and similarity search.
-- Key models: `User`, `Role`, `Competency`, `Course`, `Question`, `Assessment`, `AIQuestion`, `ContentChunk`.
+- Key models: `User`, `Role`, `Competency`, `Course`, `Question`, `Assessment`, `AIQuestion`, `ContentChunk`, `ChatSession`, `ChatMessage`, `Post`, `Comment`, `Like`, `ExperienceReview`, `CourseReview`.
 
 ## AI & RAG Pipeline
 

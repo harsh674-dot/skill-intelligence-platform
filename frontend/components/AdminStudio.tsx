@@ -27,6 +27,10 @@ import {
   LearningMaterial,
   ContentChunkItem,
   AIGeneratedQuestionItem,
+  getTPACRequests,
+  approveTPACRequest,
+  rejectTPACRequest,
+  TPACApprovalRequestItem,
 } from "@/lib/api";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -37,8 +41,13 @@ interface AdminStudioProps {
 
 export default function AdminStudio({ token, onSwitchToAdmin }: AdminStudioProps) {
   const { t } = useLanguage();
-  const [activeSubTab, setActiveSubTab] = useState<"upload" | "generate" | "review">("upload");
+  const [activeSubTab, setActiveSubTab] = useState<"upload" | "generate" | "review" | "tpac">("upload");
   const [isAdminRequired, setIsAdminRequired] = useState(false);
+
+  // TPAC State
+  const [tpacRequests, setTpacRequests] = useState<TPACApprovalRequestItem[]>([]);
+  const [tpacFilter, setTpacFilter] = useState<"all" | "PENDING" | "APPROVED" | "REJECTED">("PENDING");
+  const [tpacActionLoading, setTpacActionLoading] = useState<string | null>(null);
 
   // Ingestion State
   const [materials, setMaterials] = useState<LearningMaterial[]>([]);
@@ -68,10 +77,11 @@ export default function AdminStudio({ token, onSwitchToAdmin }: AdminStudioProps
   const loadData = useCallback(async () => {
     try {
       setIsAdminRequired(false);
-      const [contents, qList, comps] = await Promise.all([
+      const [contents, qList, comps, tpacReqs] = await Promise.all([
         getLearningContents(token),
         getAIQuestions(token),
         getCompetencies(),
+        getTPACRequests(undefined, token),
       ]);
       setMaterials(contents);
       if (contents.length > 0 && !selectedDocForGen) {
@@ -79,6 +89,7 @@ export default function AdminStudio({ token, onSwitchToAdmin }: AdminStudioProps
       }
       setAiQuestions(qList);
       setCompetencies(comps);
+      setTpacRequests(tpacReqs || []);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
       if (message.includes("Admin access required") || message.includes("403")) {
@@ -182,6 +193,28 @@ export default function AdminStudio({ token, onSwitchToAdmin }: AdminStudioProps
     return q.status === reviewFilter;
   });
 
+  const filteredTPACRequests = tpacRequests.filter((r) => {
+    if (tpacFilter === "all") return true;
+    return r.status.toUpperCase() === tpacFilter;
+  });
+
+  const handleTPACAction = async (requestId: string, action: "approve" | "reject") => {
+    setTpacActionLoading(requestId);
+    try {
+      if (action === "approve") {
+        await approveTPACRequest(requestId, "Admin User", "Approved by Admin", token);
+      } else {
+        await rejectTPACRequest(requestId, "Admin User", "Rejected by Admin", token);
+      }
+      await loadData();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Action failed";
+      alert(`TPAC action failed: ${message}`);
+    } finally {
+      setTpacActionLoading(null);
+    }
+  };
+
   if (isAdminRequired) {
     return (
       <div className="py-16 text-center space-y-4 rounded-2xl bg-white border border-amber-200 p-8 shadow-xs max-w-xl mx-auto my-8">
@@ -260,6 +293,17 @@ export default function AdminStudio({ token, onSwitchToAdmin }: AdminStudioProps
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
               {t.subtabReviewQueue} ({aiQuestions.filter((q) => q.status === "pending").length})
+            </button>
+            <button
+              onClick={() => setActiveSubTab("tpac")}
+              className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+                activeSubTab === "tpac"
+                  ? "bg-white text-indigo-700 shadow-xs border border-slate-200 font-semibold"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <ShieldAlert className="w-3.5 h-3.5" />
+              TPAC Approvals ({tpacRequests.filter((r) => r.status.toUpperCase() === "PENDING").length})
             </button>
           </div>
         </div>
@@ -525,6 +569,26 @@ export default function AdminStudio({ token, onSwitchToAdmin }: AdminStudioProps
                       <span className="text-xs text-slate-500">
                         {t.difficulty} <strong className="text-slate-800">{q.difficulty}</strong>
                       </span>
+                      {q.bloom_tag && (
+                        <span
+                          title={`Bloom's Taxonomy: ${q.bloom_tag}`}
+                          className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold border select-none ${
+                            q.bloom_tag === "remember"
+                              ? "bg-slate-100 text-slate-700 border-slate-300"
+                              : q.bloom_tag === "understand"
+                              ? "bg-sky-50 text-sky-700 border-sky-200"
+                              : q.bloom_tag === "apply"
+                              ? "bg-violet-50 text-violet-700 border-violet-200"
+                              : q.bloom_tag === "analyze"
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : q.bloom_tag === "evaluate"
+                              ? "bg-orange-50 text-orange-700 border-orange-200"
+                              : "bg-rose-50 text-rose-700 border-rose-200" // create
+                          }`}
+                        >
+                          {q.bloom_tag}
+                        </span>
+                      )}
                     </div>
 
                     {isPending && !isEditing && (
@@ -636,6 +700,100 @@ export default function AdminStudio({ token, onSwitchToAdmin }: AdminStudioProps
             {filteredAIQuestions.length === 0 && (
               <div className="py-16 text-center text-slate-500 text-sm rounded-2xl bg-white p-8 border border-slate-200">
                 No questions found.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* SUBTAB 4: TPAC Review */}
+      {activeSubTab === "tpac" && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl bg-white p-4 border border-slate-200 shadow-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500 uppercase font-semibold">Filter Status:</span>
+              {(["all", "PENDING", "APPROVED", "REJECTED"] as const).map((st) => (
+                <button
+                  key={st}
+                  onClick={() => setTpacFilter(st)}
+                  className={`text-xs px-3 py-1.5 rounded-lg capitalize transition-all ${
+                    tpacFilter === st
+                      ? "bg-indigo-600 text-white font-semibold shadow-xs"
+                      : "bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200"
+                  }`}
+                >
+                  {st.toLowerCase()}
+                </button>
+              ))}
+            </div>
+
+            <span className="text-xs text-slate-500">
+              Showing TPAC Requests: {filteredTPACRequests.length}
+            </span>
+          </div>
+
+          <div className="space-y-4">
+            {filteredTPACRequests.map((req) => {
+              const isPending = req.status.toUpperCase() === "PENDING";
+              return (
+                <div
+                  key={req.id}
+                  className="rounded-2xl bg-white border border-slate-200 p-6 shadow-xs space-y-4"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900 mb-1">
+                        Course ID: {req.course_id}
+                      </h3>
+                      <p className="text-xs text-slate-600">
+                        Requested By: <strong className="text-slate-800">{req.requested_by}</strong> on {new Date(req.request_date).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <span
+                      className={`text-[10px] px-2.5 py-0.5 rounded-full uppercase font-semibold border ${
+                        req.status.toUpperCase() === "APPROVED"
+                          ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                          : req.status.toUpperCase() === "REJECTED"
+                          ? "bg-rose-50 text-rose-800 border-rose-200"
+                          : "bg-amber-50 text-amber-800 border-amber-200"
+                      }`}
+                    >
+                      {req.status}
+                    </span>
+                  </div>
+
+                  {req.comments && (
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs text-slate-700">
+                      <strong>Comments:</strong> {req.comments}
+                    </div>
+                  )}
+
+                  {isPending && (
+                    <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+                      <button
+                        onClick={() => handleTPACAction(req.id, "reject")}
+                        disabled={tpacActionLoading === req.id}
+                        className="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                      >
+                        <X className="w-4 h-4" /> Reject
+                      </button>
+
+                      <button
+                        onClick={() => handleTPACAction(req.id, "approve")}
+                        disabled={tpacActionLoading === req.id}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
+                      >
+                        <Check className="w-4 h-4" /> Approve
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {filteredTPACRequests.length === 0 && (
+              <div className="py-16 text-center text-slate-500 text-sm rounded-2xl bg-white p-8 border border-slate-200">
+                No TPAC requests found.
               </div>
             )}
           </div>

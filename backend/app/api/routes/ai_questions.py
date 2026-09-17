@@ -1,11 +1,17 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.api.routes.jobs import (
+    complete_job,
+    create_job,
+    fail_job,
+    set_job_running,
+)
+from app.database import SessionLocal, get_db
 from app.dependencies import require_admin
 from app.models.ai_question import AIGeneratedQuestion
 from app.models.content_chunk import ContentChunk
@@ -74,6 +80,7 @@ def get_ai_questions(
             "question_text": question.question_text,
             "question_type": question.question_type,
             "difficulty": question.difficulty,
+            "bloom_tag": question.bloom_tag,
             "options": question.options,
             "correct_answer": question.correct_answer,
             "explanation": question.explanation,
@@ -124,6 +131,7 @@ def get_ai_question(
         "question_text": question.question_text,
         "question_type": question.question_type,
         "difficulty": question.difficulty,
+        "bloom_tag": question.bloom_tag,
         "options": question.options,
         "correct_answer": question.correct_answer,
         "explanation": question.explanation,
@@ -207,6 +215,7 @@ def review_ai_question(
                 question_text=question.question_text,
                 question_type="mcq",
                 difficulty=question.difficulty or "intermediate",
+                bloom_tag=question.bloom_tag,
                 options=question.options,
                 correct_answer=question.correct_answer,
                 explanation=question.explanation,
@@ -242,45 +251,151 @@ def review_ai_question(
 # =========================================================
 
 
-@router.post("/generate")
+# ---------------------------------------------------------------------------
+# Internal background worker — runs Torch generation off the event loop
+# ---------------------------------------------------------------------------
+
+def _run_generation_job(
+    job_id: str,
+    learning_content_id: UUID,
+    difficulty: str,
+    count: int,
+) -> None:
+    """
+    Background task: generates MCQs with Flan-T5 and writes results to the
+    job store.  Opens its own DB session so it doesn't share the request session.
+    """
+    set_job_running(job_id)
+    db = SessionLocal()
+    try:
+        # Fetch chunks
+        statement = (
+            select(ContentChunk)
+            .where(ContentChunk.learning_content_id == learning_content_id)
+            .order_by(ContentChunk.chunk_index)
+        )
+        chunks = db.scalars(statement).all()
+
+        if not chunks:
+            fail_job(job_id, "No content chunks found for this learning content.")
+            return
+
+        selected_chunks = [chunks[i % len(chunks)] for i in range(count)]
+
+        generated_questions = []
+        generation_errors = []
+
+        for index, source_chunk in enumerate(selected_chunks):
+            try:
+                generated = generate_mcq(
+                    source_chunk.chunk_text,
+                    difficulty=difficulty,
+                    question_number=index + 1,
+                )
+
+                required_fields = {"question_text", "options", "correct_answer"}
+                missing = required_fields - set(generated.keys())
+                if missing:
+                    raise ValueError("Missing fields: " + ", ".join(sorted(missing)))
+
+                options = generated.get("options")
+                if not isinstance(options, dict):
+                    raise ValueError("Generated options are invalid.")
+                if not {"A", "B", "C", "D"}.issubset(options.keys()):
+                    raise ValueError("Options must contain A, B, C and D.")
+
+                question = AIGeneratedQuestion(
+                    learning_content_id=learning_content_id,
+                    competency_id=None,
+                    question_text=generated["question_text"],
+                    question_type="mcq",
+                    difficulty=difficulty,
+                    bloom_tag=generated.get("bloom_tag"),
+                    options=options,
+                    correct_answer=generated["correct_answer"],
+                    explanation=generated.get("explanation"),
+                    source_chunk_ids=[str(source_chunk.id)],
+                    generation_model="google/flan-t5-base",
+                    status="pending",
+                )
+                db.add(question)
+                generated_questions.append(question)
+
+            except Exception as exc:
+                msg = f"Question {index + 1} failed: {exc}"
+                print(msg)
+                generation_errors.append(msg)
+
+        if not generated_questions:
+            db.rollback()
+            fail_job(job_id, "Could not generate any valid MCQs. Errors: " + "; ".join(generation_errors))
+            return
+
+        db.commit()
+        for q in generated_questions:
+            db.refresh(q)
+
+        result = {
+            "learning_content_id": str(learning_content_id),
+            "difficulty": difficulty,
+            "requested_count": count,
+            "generated_count": len(generated_questions),
+            "failed_count": len(generation_errors),
+            "generation_errors": generation_errors,
+            "questions": [
+                {
+                    "id": str(q.id),
+                    "learning_content_id": str(q.learning_content_id),
+                    "competency_id": str(q.competency_id) if q.competency_id else None,
+                    "question_text": q.question_text,
+                    "question_type": q.question_type,
+                    "difficulty": q.difficulty,
+                    "bloom_tag": q.bloom_tag,
+                    "options": q.options,
+                    "correct_answer": q.correct_answer,
+                    "explanation": q.explanation,
+                    "source_chunk_ids": q.source_chunk_ids,
+                    "generation_model": q.generation_model,
+                    "status": q.status,
+                    "created_at": q.created_at,
+                    "updated_at": q.updated_at,
+                }
+                for q in generated_questions
+            ],
+        }
+        complete_job(job_id, result)
+
+    except Exception as exc:
+        db.rollback()
+        fail_job(job_id, str(exc))
+    finally:
+        db.close()
+
+
+@router.post("/generate", status_code=202)
 def generate_ai_questions(
     learning_content_id: UUID,
+    background_tasks: BackgroundTasks,
     difficulty: str = "beginner",
     count: int = 5,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     """
-    Generate multiple AI MCQs from learning content.
+    Enqueue AI MCQ generation from learning content.
 
-    Questions are generated from different content chunks
-    whenever enough chunks are available.
-    """
+    Returns 202 Accepted immediately with a job_id.
+    Poll GET /api/jobs/{job_id} until status is 'done' or 'failed'.
 
-    # -----------------------------------------------------
-    # 1. Validate difficulty
-    # -----------------------------------------------------
-
-    allowed_difficulties = {
-        "beginner",
-        "intermediate",
-        "advanced",
-    }
+    This avoids blocking the server event loop during Torch/LLM inference.
+    """  # noqa: D401
 
     difficulty = difficulty.lower().strip()
-
-    if difficulty not in allowed_difficulties:
+    if difficulty not in {"beginner", "intermediate", "advanced"}:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "Difficulty must be beginner, intermediate, "
-                "or advanced."
-            ),
+            detail="Difficulty must be beginner, intermediate, or advanced.",
         )
-
-    # -----------------------------------------------------
-    # 2. Validate count
-    # -----------------------------------------------------
 
     if count < 1 or count > 20:
         raise HTTPException(
@@ -288,229 +403,33 @@ def generate_ai_questions(
             detail="Count must be between 1 and 20.",
         )
 
-    # -----------------------------------------------------
-    # 3. Find content chunks
-    # -----------------------------------------------------
-
-    statement = (
+    # Verify that content chunks exist before enqueuing (fast DB check)
+    chunk_exists = db.scalars(
         select(ContentChunk)
-        .where(
-            ContentChunk.learning_content_id
-            == learning_content_id
-        )
-        .order_by(ContentChunk.chunk_index)
-    )
+        .where(ContentChunk.learning_content_id == learning_content_id)
+        .limit(1)
+    ).first()
 
-    chunks = db.scalars(statement).all()
-
-    if not chunks:
+    if not chunk_exists:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=(
-                "No content chunks found for this learning content."
-            ),
+            detail="No content chunks found for this learning content.",
         )
 
-    # -----------------------------------------------------
-    # 4. Select chunks
-    # -----------------------------------------------------
-    #
-    # If the document has fewer chunks than requested,
-    # we generate one question per available chunk.
-    #
-    # If the document has enough chunks, each question
-    # initially uses a different chunk.
-    #
-    # For very small documents, chunks are reused only after
-    # every available chunk has been used.
-    # -----------------------------------------------------
-
-    selected_chunks = []
-
-    for index in range(count):
-        selected_chunks.append(
-            chunks[index % len(chunks)]
-        )
-
-    # -----------------------------------------------------
-    # 5. Generate questions
-    # -----------------------------------------------------
-
-    generated_questions = []
-    generation_errors = []
-
-    for index, source_chunk in enumerate(selected_chunks):
-
-        try:
-            print(
-                f"Generating MCQ {index + 1}/{count} "
-                f"from chunk {source_chunk.chunk_index}"
-            )
-
-            generated = generate_mcq(
-                source_chunk.chunk_text,
-                difficulty=difficulty,
-            )
-
-            # ---------------------------------------------
-            # Basic validation
-            # ---------------------------------------------
-
-            required_fields = {
-                "question_text",
-                "options",
-                "correct_answer",
-            }
-
-            missing_fields = required_fields - set(
-                generated.keys()
-            )
-
-            if missing_fields:
-                raise ValueError(
-                    "Generated question is missing fields: "
-                    + ", ".join(sorted(missing_fields))
-                )
-
-            options = generated.get("options")
-
-            if not isinstance(options, dict):
-                raise ValueError(
-                    "Generated question options are invalid."
-                )
-
-            required_options = {"A", "B", "C", "D"}
-
-            if not required_options.issubset(options.keys()):
-                raise ValueError(
-                    "Generated question must contain "
-                    "options A, B, C and D."
-                )
-
-            # ---------------------------------------------
-            # Create database object
-            # ---------------------------------------------
-
-            question = AIGeneratedQuestion(
-                learning_content_id=learning_content_id,
-                competency_id=None,
-                question_text=generated["question_text"],
-                question_type="mcq",
-                difficulty=difficulty,
-                options=options,
-                correct_answer=generated["correct_answer"],
-                explanation=generated.get("explanation"),
-                source_chunk_ids=[
-                    str(source_chunk.id)
-                ],
-                generation_model="google/flan-t5-base",
-                status="pending",
-            )
-
-            db.add(question)
-
-            generated_questions.append(
-                question
-            )
-
-        except Exception as exc:
-
-            error_message = (
-                f"Question {index + 1} failed: {exc}"
-            )
-
-            print(error_message)
-
-            generation_errors.append(
-                error_message
-            )
-
-    # -----------------------------------------------------
-    # 6. Make sure at least one question was generated
-    # -----------------------------------------------------
-
-    if not generated_questions:
-
-        db.rollback()
-
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "message": (
-                    "Could not generate any valid MCQs."
-                ),
-                "errors": generation_errors,
-            },
-        )
-
-    # -----------------------------------------------------
-    # 7. Save generated questions
-    # -----------------------------------------------------
-
-    try:
-        db.commit()
-
-        for question in generated_questions:
-            db.refresh(question)
-
-    except Exception as exc:
-
-        db.rollback()
-
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=(
-                "MCQs were generated but could not be saved: "
-                f"{exc}"
-            ),
-        )
-
-    # -----------------------------------------------------
-    # 8. Return generated questions
-    # -----------------------------------------------------
+    job_id = create_job()
+    background_tasks.add_task(
+        _run_generation_job,
+        job_id=job_id,
+        learning_content_id=learning_content_id,
+        difficulty=difficulty,
+        count=count,
+    )
 
     return {
-        "learning_content_id": str(
-            learning_content_id
-        ),
+        "message": "MCQ generation enqueued. Poll the job endpoint for results.",
+        "job_id": job_id,
+        "learning_content_id": str(learning_content_id),
         "difficulty": difficulty,
         "requested_count": count,
-        "generated_count": len(
-            generated_questions
-        ),
-        "failed_count": len(
-            generation_errors
-        ),
-        "generation_errors": generation_errors,
-        "questions": [
-            {
-                "id": str(question.id),
-                "learning_content_id": str(
-                    question.learning_content_id
-                ),
-                "competency_id": (
-                    str(question.competency_id)
-                    if question.competency_id
-                    else None
-                ),
-                "question_text": question.question_text,
-                "question_type": question.question_type,
-                "difficulty": question.difficulty,
-                "options": question.options,
-                "correct_answer": (
-                    question.correct_answer
-                ),
-                "explanation": question.explanation,
-                "source_chunk_ids": (
-                    question.source_chunk_ids
-                ),
-                "generation_model": (
-                    question.generation_model
-                ),
-                "status": question.status,
-                "created_at": question.created_at,
-                "updated_at": question.updated_at,
-            }
-            for question in generated_questions
-        ],
+        "poll_url": f"/api/jobs/{job_id}",
     }

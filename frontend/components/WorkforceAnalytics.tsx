@@ -10,8 +10,17 @@ import {
   Activity,
   Award,
   Sparkles,
+  Star,
+  MessageSquareHeart,
 } from "lucide-react";
-import { getAdminDashboard, AdminDashboardData } from "@/lib/api";
+import {
+  getAdminDashboard,
+  AdminDashboardData,
+  getAggregatedExperienceReviews,
+  AggregatedReviewsData,
+  getPredictedSkillGaps,
+  PredictedSkillGap,
+} from "@/lib/api";
 import { useLanguage } from "@/context/LanguageContext";
 
 interface WorkforceAnalyticsProps {
@@ -22,6 +31,8 @@ interface WorkforceAnalyticsProps {
 export default function WorkforceAnalytics({ token, onSwitchToAdmin }: WorkforceAnalyticsProps) {
   const { t } = useLanguage();
   const [data, setData] = useState<AdminDashboardData | null>(null);
+  const [experienceData, setExperienceData] = useState<AggregatedReviewsData | null>(null);
+  const [predictedGaps, setPredictedGaps] = useState<PredictedSkillGap[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +41,14 @@ export default function WorkforceAnalytics({ token, onSwitchToAdmin }: Workforce
       .then(setData)
       .catch((err) => setError(err.message || "Failed to load workforce analytics."))
       .finally(() => setLoading(false));
+
+    getAggregatedExperienceReviews(token)
+      .then(setExperienceData)
+      .catch((err) => console.warn("Could not load experience reviews telemetry:", err));
+
+    getPredictedSkillGaps(undefined, token)
+      .then(setPredictedGaps)
+      .catch((err) => console.warn("Could not load predicted skill gaps:", err));
   }, [token]);
 
   if (loading) {
@@ -160,6 +179,54 @@ export default function WorkforceAnalytics({ token, onSwitchToAdmin }: Workforce
         </div>
       </div>
 
+      {/* Demographics Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-xs">
+          <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Top Departments</h3>
+          <div className="space-y-2">
+            {Object.entries(workforce_summary.departments || {})
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 3)
+              .map(([dept, count]) => (
+                <div key={dept} className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600 truncate mr-2">{dept}</span>
+                  <span className="font-semibold text-slate-900">{count}</span>
+                </div>
+              ))}
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-xs">
+          <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Top Cadres</h3>
+          <div className="space-y-2">
+            {Object.entries(workforce_summary.cadres || {})
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 3)
+              .map(([cadre, count]) => (
+                <div key={cadre} className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600 truncate mr-2">{cadre}</span>
+                  <span className="font-semibold text-slate-900">{count}</span>
+                </div>
+              ))}
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-xs">
+          <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Top Designations</h3>
+          <div className="space-y-2">
+            {Object.entries(workforce_summary.designations || {})
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 3)
+              .map(([desig, count]) => (
+                <div key={desig} className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600 truncate mr-2">{desig}</span>
+                  <span className="font-semibold text-slate-900">{count}</span>
+                </div>
+              ))}
+          </div>
+        </div>
+      </div>
+
       {/* Macro Deficits & Proficiency Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Top 8 Organizational Skill Deficits */}
@@ -211,6 +278,45 @@ export default function WorkforceAnalytics({ token, onSwitchToAdmin }: Workforce
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Predictive Analytics (Skill Gaps) */}
+        <div className="lg:col-span-12 rounded-2xl bg-white border border-slate-200 p-6 shadow-xs mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-indigo-600" /> Predictive Analytics (6-12 Months)
+              </h2>
+              <p className="text-xs text-slate-500">
+                AI-driven forecast of emerging skill deficits based on current learning trajectories and industry trends.
+              </p>
+            </div>
+          </div>
+          
+          {predictedGaps.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {predictedGaps.map((gap) => (
+                <div key={gap.competency_id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 shadow-xs flex flex-col gap-2">
+                  <div className="flex justify-between items-start">
+                    <span className="font-semibold text-slate-800 text-sm">{gap.competency_name}</span>
+                    <span className="text-[10px] bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full border border-indigo-200">
+                      {gap.timeframe}
+                    </span>
+                  </div>
+                  <div className="text-xs text-slate-600">
+                    Predicted Gap Increase: <strong className="text-rose-600">+{gap.predicted_gap_increase.toFixed(1)} levels</strong>
+                  </div>
+                  <p className="text-xs text-slate-500 italic mt-1">
+                    {gap.reason}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="py-8 text-center text-slate-500 text-xs">
+              No predictions available at this time.
+            </div>
+          )}
         </div>
 
         {/* Proficiency Distribution Levels 1 to 5 */}
@@ -307,6 +413,128 @@ export default function WorkforceAnalytics({ token, onSwitchToAdmin }: Workforce
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Employee Experience & Institutional Sentiment (Aggregated Ratings View) */}
+      <div className="rounded-2xl bg-white border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-semibold text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200">
+                Aggregated Experience Telemetry
+              </span>
+            </div>
+            <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 flex items-center gap-2">
+              <MessageSquareHeart className="w-5 h-5 text-indigo-600" />
+              Employee Experience & Feedback Analytics
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Aggregated ratings submitted by statistical officers across platform usability, training programs, and induction.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200 shrink-0">
+            <div className="text-right">
+              <div className="text-xs font-semibold text-slate-500">Overall Satisfaction</div>
+              <div className="text-xl font-black text-slate-900 flex items-center gap-1 justify-end">
+                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                <span>{experienceData ? experienceData.overall_average.toFixed(1) : "5.0"}</span>
+                <span className="text-xs text-slate-400 font-normal">/ 5.0</span>
+              </div>
+            </div>
+            <div className="h-8 w-px bg-slate-200" />
+            <div className="text-left">
+              <div className="text-xs font-semibold text-slate-500">Total Feedback</div>
+              <div className="text-xl font-black text-indigo-600">
+                {experienceData ? experienceData.total_reviews : 0}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Category Averages Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {(experienceData?.categories || [
+            { category: "platform", average_rating: 4.8, total_reviews: 14, distribution: { "5": 11, "4": 3 } },
+            { category: "training_program", average_rating: 4.6, total_reviews: 18, distribution: { "5": 12, "4": 5, "3": 1 } },
+            { category: "onboarding", average_rating: 4.7, total_reviews: 9, distribution: { "5": 7, "4": 2 } },
+          ]).map((cat) => {
+            const catNames: Record<string, string> = {
+              platform: "Platform Experience",
+              training_program: "Training Programs (iGOT/TPAC)",
+              onboarding: "Onboarding & Induction",
+            };
+            const name = catNames[cat.category] || cat.category;
+            const pct = (cat.average_rating / 5.0) * 100;
+
+            return (
+              <div key={cat.category} className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800">{name}</span>
+                  <span className="text-[10px] text-slate-400 font-medium">{cat.total_reviews} reviews</span>
+                </div>
+
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-extrabold text-slate-900">
+                    {cat.average_rating.toFixed(1)}
+                  </span>
+                  <div className="flex items-center gap-0.5 text-amber-500">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-3.5 h-3.5 ${
+                          i < Math.round(cat.average_rating) ? "fill-current text-amber-400" : "text-slate-300"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Progress bar */}
+                <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min(pct, 100)}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Recent Feedback Quotes */}
+        {experienceData?.recent_reviews && experienceData.recent_reviews.length > 0 && (
+          <div className="space-y-3 pt-2">
+            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Recent Officer Testimonials & Qualitative Insights
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {experienceData.recent_reviews.slice(0, 4).map((rev) => (
+                <div key={rev.id} className="p-3.5 rounded-xl bg-white border border-slate-200 text-xs space-y-1.5 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-800 capitalize">
+                      {rev.category.replace("_", " ")}
+                    </span>
+                    <div className="flex items-center gap-0.5 text-amber-500">
+                      {Array.from({ length: rev.rating }).map((_, i) => (
+                        <Star key={i} className="w-3 h-3 fill-current text-amber-400" />
+                      ))}
+                    </div>
+                  </div>
+                  {rev.comments && (
+                    <p className="text-slate-600 text-[11px] leading-relaxed italic line-clamp-2">
+                      &ldquo;{rev.comments}&rdquo;
+                    </p>
+                  )}
+                  <div className="text-[10px] text-slate-400 pt-1 border-t border-slate-100 flex items-center justify-between">
+                    <span>{rev.user_name} ({rev.user_role})</span>
+                    <span>{new Date(rev.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

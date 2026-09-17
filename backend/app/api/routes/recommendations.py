@@ -1,29 +1,18 @@
-from fastapi import (
-    APIRouter,
-    Depends,
-    HTTPException,
-)
+import uuid
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models.competency import (
-    RoleCompetency,
-    UserCompetency,
-)
-from app.models.course import (
-    Course,
-    CourseCompetency,
-)
+from app.models.competency import RoleCompetency, UserCompetency
+from app.models.course import Course, CourseCompetency
 from app.models.learning import Recommendation
-from app.services.recommendation_engine import (
-    refresh_recommendations,
-)
-
+from app.schemas.recommendation import RecommendationResponse
 
 router = APIRouter(
     prefix="/recommendations",
-    tags=["recommendations"],
+    tags=["Recommendations"],
 )
 
 
@@ -32,47 +21,53 @@ def get_recommendations(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    """
-    Return fresh personalized recommendations.
-
-    Phase 5:
-    Recommendations are recalculated whenever this endpoint
-    is called so they always reflect the latest competency gaps.
-    """
+    """Return fresh personalized recommendations."""
 
     if not current_user.job_role_id:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "User does not have a job role assigned."
-            ),
+            detail="User does not have a job role assigned.",
         )
 
-    refresh_recommendations(
-        db,
-        current_user,
-    )
+    from app.services.recommendation_engine import refresh_recommendations
+
+    refresh_recommendations(db, current_user)
 
     recommendations = (
         db.query(Recommendation)
         .filter(
-            Recommendation.user_id
-            == current_user.id,
-            Recommendation.status.in_(
-                ["pending", "accepted"]
-            ),
+            Recommendation.user_id == current_user.id,
+            Recommendation.status.in_(["pending", "accepted"]),
         )
         .all()
     )
 
+    course_ids = [r.course_id for r in recommendations]
+    course_ratings: dict[uuid.UUID, tuple[float, int]] = {}
+    if course_ids:
+        from app.models.course_review import CourseReview
+        from sqlalchemy import func
+
+        ratings_query = (
+            db.query(
+                CourseReview.course_id,
+                func.avg(CourseReview.helpfulness_rating).label("avg_rating"),
+                func.count(CourseReview.id).label("review_count"),
+            )
+            .filter(CourseReview.course_id.in_(course_ids))
+            .group_by(CourseReview.course_id)
+            .all()
+        )
+        course_ratings = {
+            r.course_id: (float(r.avg_rating), int(r.review_count))
+            for r in ratings_query
+        }
+
     recommendations.sort(
         key=lambda recommendation: (
-            -float(
-                recommendation.priority_score
-            ),
-            -float(
-                recommendation.gap_score
-            ),
+            -float(recommendation.priority_score),
+            -course_ratings.get(recommendation.course_id, (0.0, 0))[0],
+            -float(recommendation.gap_score),
         )
     )
 
@@ -80,10 +75,7 @@ def get_recommendations(
 
     for recommendation in recommendations:
 
-        course = db.get(
-            Course,
-            recommendation.course_id,
-        )
+        course = db.get(Course, recommendation.course_id)
 
         if not course:
             continue
@@ -91,10 +83,8 @@ def get_recommendations(
         mapping = (
             db.query(CourseCompetency)
             .filter(
-                CourseCompetency.course_id
-                == course.id,
-                CourseCompetency.competency_id
-                == recommendation.competency_id,
+                CourseCompetency.course_id == course.id,
+                CourseCompetency.competency_id == recommendation.competency_id,
             )
             .first()
         )
@@ -102,10 +92,8 @@ def get_recommendations(
         user_competency = (
             db.query(UserCompetency)
             .filter(
-                UserCompetency.user_id
-                == current_user.id,
-                UserCompetency.competency_id
-                == recommendation.competency_id,
+                UserCompetency.user_id == current_user.id,
+                UserCompetency.competency_id == recommendation.competency_id,
             )
             .first()
         )
@@ -113,10 +101,8 @@ def get_recommendations(
         role_competency = (
             db.query(RoleCompetency)
             .filter(
-                RoleCompetency.role_id
-                == current_user.job_role_id,
-                RoleCompetency.competency_id
-                == recommendation.competency_id,
+                RoleCompetency.role_id == current_user.job_role_id,
+                RoleCompetency.competency_id == recommendation.competency_id,
             )
             .first()
         )
@@ -133,6 +119,8 @@ def get_recommendations(
             else current_level
         )
 
+        avg_rating, review_count = course_ratings.get(course.id, (0.0, 0))
+
         result.append(
             {
                 "recommendation_id": recommendation.id,
@@ -140,9 +128,7 @@ def get_recommendations(
                 "course_title": course.title,
                 "provider": course.provider,
                 "course_url": course.url,
-                "competency_id": (
-                    recommendation.competency_id
-                ),
+                "competency_id": recommendation.competency_id,
                 "current_level": current_level,
                 "required_level": required_level,
                 "course_target_level": (
@@ -150,12 +136,10 @@ def get_recommendations(
                     if mapping
                     else None
                 ),
-                "gap_score": float(
-                    recommendation.gap_score
-                ),
-                "priority_score": float(
-                    recommendation.priority_score
-                ),
+                "gap_score": float(recommendation.gap_score),
+                "priority_score": float(recommendation.priority_score),
+                "average_helpfulness": round(avg_rating, 1),
+                "review_count": review_count,
                 "status": recommendation.status,
                 "reason": recommendation.reason,
             }
@@ -165,3 +149,73 @@ def get_recommendations(
         "total_recommendations": len(result),
         "recommendations": result,
     }
+
+
+@router.post(
+    "/{recommendation_id}/accept",
+)
+def accept_recommendation(
+    recommendation_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Accept a recommendation - marks it as 'accepted'."""
+    recommendation = db.scalar(
+        select(Recommendation).where(
+            Recommendation.id == recommendation_id,
+            Recommendation.user_id == current_user.id,
+        )
+    )
+
+    if not recommendation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Recommendation not found",
+        )
+
+    if recommendation.status == "accepted":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Recommendation already accepted",
+        )
+
+    recommendation.status = "accepted"
+    db.commit()
+    db.refresh(recommendation)
+
+    return {"message": "Recommendation accepted", "recommendation_id": str(recommendation_id)}
+
+
+@router.post(
+    "/{recommendation_id}/dismiss",
+)
+def dismiss_recommendation(
+    recommendation_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Dismiss a recommendation - marks it as 'dismissed'."""
+    recommendation = db.scalar(
+        select(Recommendation).where(
+            Recommendation.id == recommendation_id,
+            Recommendation.user_id == current_user.id,
+        )
+    )
+
+    if not recommendation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Recommendation not found",
+        )
+
+    if recommendation.status == "dismissed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Recommendation already dismissed",
+        )
+
+    recommendation.status = "dismissed"
+    db.commit()
+    db.refresh(recommendation)
+
+    return {"message": "Recommendation dismissed", "recommendation_id": str(recommendation_id)}

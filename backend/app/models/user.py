@@ -58,6 +58,11 @@ class User(Base):
         nullable=True,
     )
 
+    cadre: Mapped[str | None] = mapped_column(
+        String(150),
+        nullable=True,
+    )
+
     job_role_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("roles.id", ondelete="SET NULL"),
@@ -95,7 +100,7 @@ class User(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "access_role IN ('employee', 'admin')",
+            "access_role IN ('employee', 'admin', 'manager')",
             name="check_user_access_role",
         ),
         CheckConstraint(
@@ -129,6 +134,24 @@ class User(Base):
 
     progress = relationship(
         "Progress",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    chat_sessions = relationship(
+        "ChatSession",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    dpdp_consents = relationship(
+        "DPDPConsent",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    official_profile = relationship(
+        "OfficialProfile",
         back_populates="user",
         cascade="all, delete-orphan",
     )
