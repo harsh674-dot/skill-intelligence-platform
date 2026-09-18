@@ -66,7 +66,15 @@ This ensures upgrades reflect both prior mastery and demonstrated learning, prev
 - **Employee Dashboard** — personal gap heatmap, recommendations, progress tracking, competency history
 - **Admin Dashboard** — workforce summary, gap analytics, proficiency distribution, domain health, training effectiveness, content/AI stats
 
-### 2.7 Interactive 3D Visualization
+### 2.7 Employee Self-Registration
+
+New employees can register directly from the Navbar "Register New Employee" button. The form captures name, email, password, role selection, department, and designation. On registration, the backend creates the user, assigns the selected role, and auto-creates initial `UserCompetency` records at Level 1 for all competencies in that role. The user is then automatically logged in and their dashboard loads immediately.
+
+### 2.8 Hidden-Feedback 15-Question Quiz
+
+Assessments feature 15 questions with **hidden per-question feedback**. During the quiz, selecting an answer only highlights the choice. After all questions are completed, a **full answer review** displays every question with selected answer, correct answer, right/wrong indicator, and explanation. Competency levels are updated using the **40/60 Rule** applied at the end.
+
+### 2.9 Interactive 3D Visualization
 
 A Three.js-powered **Skill Galaxy** lets users explore competencies as stars in a 3D universe. Selecting a domain filters the visualization, providing an intuitive way to understand organizational skill distribution.
 

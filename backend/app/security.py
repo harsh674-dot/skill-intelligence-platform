@@ -34,6 +34,7 @@ def create_access_token(
     payload = {
         "sub": user_id,
         "role": access_role,
+        "iat": datetime.now(timezone.utc),
         "exp": expire,
     }
 

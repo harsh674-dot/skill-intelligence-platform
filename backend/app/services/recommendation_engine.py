@@ -1,4 +1,5 @@
 from app.models.competency import (
+    Competency,
     RoleCompetency,
     UserCompetency,
 )
@@ -7,6 +8,8 @@ from app.models.course import (
     CourseCompetency,
 )
 from app.models.learning import Recommendation
+from app.services.rationale_generator import generate_rationale
+
 
 
 def refresh_recommendations(
@@ -182,12 +185,17 @@ def refresh_recommendations(
 
             seen.add(key)
 
-            reason = (
-                f"Current level: {current_level}, "
-                f"Required level: {required_level}, "
-                f"Gap: {gap}, "
-                f"Course target level: "
-                f"{mapping.target_level}."
+            competency = db.get(Competency, role_competency.competency_id)
+            competency_name = competency.name if competency else "this competency"
+            user_designation = current_user.designation or "Official"
+
+            reason = generate_rationale(
+                user_designation=user_designation,
+                competency_name=competency_name,
+                current_level=current_level,
+                required_level=required_level,
+                course_title=course.title,
+                course_description=course.description or "No description provided."
             )
 
             recommendation = existing_map.get(key)

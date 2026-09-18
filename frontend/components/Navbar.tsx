@@ -16,6 +16,7 @@ import {
   X,
   CheckCircle2,
   AlertCircle,
+  Users,
 } from "lucide-react";
 import { UserResponse, login, getMe, register, getRoles } from "@/lib/api";
 import { useLanguage } from "@/context/LanguageContext";
@@ -269,6 +270,15 @@ export default function Navbar({
                 <ShieldAlert className={`w-4 h-4 ${currentTab === "admin" ? "text-indigo-600" : "text-slate-400"}`} />
                 {t.tabAdmin}
               </button>
+
+              <a
+                href="/community"
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 text-slate-600 hover:text-indigo-700 hover:bg-white/70"
+                title="Community Space"
+              >
+                <Users className="w-4 h-4 text-slate-400" />
+                Community
+              </a>
             </nav>
 
             {/* Right Action: Language Toggle + Demo Persona Switcher & Live Status */}

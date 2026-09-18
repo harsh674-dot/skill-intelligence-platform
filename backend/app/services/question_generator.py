@@ -37,6 +37,22 @@ QUESTION_FOCUSES = [
     "a calculation, rule, or technical detail if present",
 ]
 
+# Bloom's Taxonomy: fallback mapping when model doesn't classify
+_BLOOM_DIFFICULTY_MAP: dict[str, str] = {
+    "beginner": "remember",
+    "intermediate": "understand",
+    "advanced": "analyze",
+}
+
+_VALID_BLOOM_TAGS = {
+    "remember",
+    "understand",
+    "apply",
+    "analyze",
+    "evaluate",
+    "create",
+}
+
 # ============================================================
 # LAZY LOAD MODEL
 # ============================================================
@@ -247,6 +263,34 @@ def _extract_explanation(text: str) -> str:
 
 
 # ============================================================
+# BLOOM'S TAXONOMY EXTRACTION
+# ============================================================
+
+def _extract_bloom_tag(text: str, difficulty: str = "beginner") -> str:
+    """
+    Extract Bloom's Taxonomy cognitive level from model output.
+
+    Looks for a line like:
+        Bloom Tag: apply
+        Bloom Level: analyze
+
+    Falls back to a difficulty-based heuristic when the model
+    doesn't produce the line.
+    """
+    match = re.search(
+        r"bloom\s+(?:tag|level)\s*[:\-]?\s*(\w+)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if match:
+        candidate = match.group(1).strip().lower()
+        if candidate in _VALID_BLOOM_TAGS:
+            return candidate
+
+    return _BLOOM_DIFFICULTY_MAP.get(difficulty, "remember")
+
+
+# ============================================================
 # VALIDATION
 # ============================================================
 
@@ -361,6 +405,7 @@ def _fallback_mcq(
             "provided learning material."
         ),
         "difficulty": difficulty,
+        "bloom_tag": _BLOOM_DIFFICULTY_MAP.get(difficulty, "remember"),
     }
 
 
@@ -401,6 +446,7 @@ C. <option C>
 D. <option D>
 Answer: <A, B, C, or D>
 Explanation: <short explanation>
+Bloom Tag: <one of: remember, understand, apply, analyze, evaluate, create>
 
 Rules:
 
@@ -414,6 +460,10 @@ Rules:
 - The incorrect options must be plausible but contradicted by
   or unsupported by the learning material.
 - Do not repeat the question wording.
+- Bloom Tag must reflect the cognitive level: use 'remember' for
+  recall/definition questions, 'understand' for explanation questions,
+  'apply' for application questions, 'analyze' for comparison/cause
+  questions, 'evaluate' for judgement questions.
 - Do not add any text outside the requested format.
 """.strip()
 
@@ -491,12 +541,15 @@ def _parse_mcq(
         raw_output
     )
 
+    bloom_tag = _extract_bloom_tag(raw_output, difficulty)
+
     return {
         "question_text": question,
         "options": options,
         "correct_answer": correct_answer,
         "explanation": explanation,
         "difficulty": difficulty,
+        "bloom_tag": bloom_tag,
     }
 
 

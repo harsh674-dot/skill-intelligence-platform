@@ -87,14 +87,26 @@ class Competency(Base):
         back_populates="competency",
         cascade="all, delete-orphan",
     )
-
     course_competencies = relationship(
         "CourseCompetency",
         back_populates="competency",
         cascade="all, delete-orphan",
     )
+
     recommendations = relationship(
         "Recommendation",
+        back_populates="competency",
+        cascade="all, delete-orphan",
+    )
+
+    assessment_records = relationship(
+        "CompetencyAssessmentRecord",
+        back_populates="competency",
+        cascade="all, delete-orphan",
+    )
+
+    competency_mappings = relationship(
+        "CompetencyMapping",
         back_populates="competency",
         cascade="all, delete-orphan",
     )

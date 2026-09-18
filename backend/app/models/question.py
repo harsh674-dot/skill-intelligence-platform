@@ -62,6 +62,12 @@ class Question(Base):
         nullable=True,
     )
 
+    bloom_tag: Mapped[str | None] = mapped_column(
+        String(30),
+        nullable=True,
+        comment="Bloom's Taxonomy cognitive level: remember | understand | apply | analyze | evaluate | create",
+    )
+
     source_content_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey(
@@ -94,6 +100,11 @@ class Question(Base):
         CheckConstraint(
             "difficulty IN ('beginner', 'intermediate', 'advanced')",
             name="check_question_difficulty",
+        ),
+        CheckConstraint(
+            "bloom_tag IS NULL OR bloom_tag IN "
+            "('remember', 'understand', 'apply', 'analyze', 'evaluate', 'create')",
+            name="check_question_bloom_tag",
         ),
     )
 

@@ -317,8 +317,14 @@ def get_employee_dashboard(
         "employee": {
             "user_id": current_user.id,
             "email": current_user.email,
+            "full_name": current_user.full_name,
             "role_id": role.id,
             "role_name": role.name,
+            "designation": current_user.designation,
+            "department": current_user.department,
+            "cadre": current_user.cadre,
+            "education": current_user.education,
+            "experience_years": current_user.experience_years,
         },
         "summary": {
             "total_competencies": total_competencies,
@@ -356,11 +362,20 @@ def get_admin_dashboard(
     roles = db.query(Role).filter(Role.is_active == True).all()
     roles_map = {r.id: r.name for r in roles}
 
-    # Department breakdown
+    # Department, Cadre, and Designation breakdown
     dept_counts: dict[str, int] = {}
+    cadre_counts: dict[str, int] = {}
+    designation_counts: dict[str, int] = {}
+    
     for u in users:
         dept = u.department or "Unassigned"
         dept_counts[dept] = dept_counts.get(dept, 0) + 1
+        
+        cad = u.cadre or "Unassigned"
+        cadre_counts[cad] = cadre_counts.get(cad, 0) + 1
+        
+        desig = u.designation or "Unassigned"
+        designation_counts[desig] = designation_counts.get(desig, 0) + 1
 
     # Role breakdown
     role_counts: dict[str, int] = {}
@@ -480,6 +495,8 @@ def get_admin_dashboard(
             "total_roles": len(roles),
             "departments": dept_counts,
             "roles": role_counts,
+            "cadres": cadre_counts,
+            "designations": designation_counts,
         },
         "gap_analytics": {
             "total_gaps_count": total_gaps_count,

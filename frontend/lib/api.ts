@@ -1,10 +1,9 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim() || "";
+const API_BASE_URL =
+  configuredApiUrl === "/api" || configuredApiUrl === "/api/"
+    ? ""
+    : configuredApiUrl.replace(/\/$/, "");
 
-const MOCK_ANSWERS: Map<string, { questionId: string; selectedAnswer: string; isCorrect: boolean }> = new Map();
-
-function getMockAssessmentId(token?: string): string {
-  return token?.includes("admin") ? "mock-assessment-id-admin" : "mock-assessment-id-1";
-}
 
 export interface HealthResponse {
   status: string;
@@ -57,14 +56,22 @@ export interface RecommendationItem {
   organizational_priority?: number;
   reason?: string;
   status?: string;
+  average_helpfulness?: number;
+  review_count?: number;
 }
 
 export interface EmployeeDashboardData {
   employee: {
     user_id: string;
     email: string;
+    full_name: string;
     role_id: string;
     role_name: string;
+    designation?: string;
+    department?: string;
+    cadre?: string;
+    education?: string;
+    experience_years?: number;
   };
   summary: {
     total_competencies: number;
@@ -84,6 +91,8 @@ export interface AdminDashboardData {
     total_roles: number;
     departments: Record<string, number>;
     roles: Record<string, number>;
+    cadres?: Record<string, number>;
+    designations?: Record<string, number>;
   };
   gap_analytics: {
     total_gaps_count: number;
@@ -199,6 +208,7 @@ export interface AIGeneratedQuestionItem {
   question_text: string;
   question_type: string;
   difficulty: string;
+  bloom_tag: string | null;
   options: Record<string, string>;
   correct_answer: string;
   explanation: string;
@@ -209,188 +219,39 @@ export interface AIGeneratedQuestionItem {
   updated_at: string;
 }
 
-import {
-  MOCK_DASHBOARD,
-  MOCK_ADMIN_DASHBOARD,
-  MOCK_ASSESSMENT,
-  MOCK_LEARNING_CONTENT,
-  MOCK_AI_QUESTIONS,
-} from "./mockData";
-
-function getDemoFallback<T>(endpoint: string, options: RequestInit = {}, token?: string): T | undefined {
-  if (endpoint.includes("/health")) {
-    return { status: "ok", service: "Skill Intelligence Platform (Demo)" } as unknown as T;
-  }
-  if (endpoint.includes("/api/auth/login")) {
-    let isAdmin = false;
-    try {
-      if (typeof options.body === "string" && (options.body.includes("rohit") || options.body.includes("admin"))) {
-        isAdmin = true;
-      }
-    } catch {}
-    return {
-      access_token: isAdmin ? "demo-token-admin" : "demo-token-employee",
-      token_type: "bearer",
-    } as unknown as T;
-  }
-  if (endpoint.includes("/api/auth/me")) {
-    const isAdmin = token?.includes("admin");
-    if (isAdmin) {
-      return {
-        id: "user-rohit",
-        email: "rohit.kumar@demo.gov.in",
-        full_name: "Rohit Kumar",
-        access_role: "admin",
-      } as unknown as T;
-    }
-    return {
-      id: "user-ananya",
-      email: "ananya.sharma@demo.gov.in",
-      full_name: "Ananya Sharma",
-      access_role: "employee",
-    } as unknown as T;
-  }
-  if (endpoint.includes("/api/dashboard/admin")) {
-    return MOCK_ADMIN_DASHBOARD as unknown as T;
-  }
-  if (endpoint.includes("/api/dashboard")) {
-    return MOCK_DASHBOARD as unknown as T;
-  }
-  if (endpoint.includes("/api/competencies")) {
-    return MOCK_DASHBOARD.competencies.map((c: CompetencyItem) => ({
-      id: c.competency_id,
-      name: c.competency_name,
-      domain: c.domain,
-    })) as unknown as T;
-  }
-  if (endpoint.includes("/api/assessments/start")) {
-    const assessmentId = getMockAssessmentId(token);
-    MOCK_ANSWERS.clear();
-    return {
-      ...MOCK_ASSESSMENT,
-      assessment_id: assessmentId,
-    } as unknown as T;
-  }
-  if (endpoint.includes("/answers")) {
-    let questionId = "";
-    let selectedAnswer = "";
-    try {
-      if (typeof options.body === "string") {
-        const body = JSON.parse(options.body);
-        questionId = body.question_id || "";
-        selectedAnswer = (body.selected_answer || "").trim().toUpperCase();
-      }
-    } catch {}
-
-    const mockQuestion = MOCK_ASSESSMENT.questions.find((q) => q.id === questionId);
-    const correctAnswer = (mockQuestion?.correct_answer || "").trim().toUpperCase();
-    const isCorrect = !!correctAnswer && selectedAnswer === correctAnswer;
-
-    MOCK_ANSWERS.set(questionId, {
-      questionId,
-      selectedAnswer,
-      isCorrect,
-    });
-
-    const explanations: Record<string, string> = {
-      "q-1": "Stratified Random Sampling ensures each sub-population is proportionately represented, reducing sampling variance.",
-      "q-2": "GVA at basic prices = Output at basic prices minus Intermediate Consumption at purchasers' prices (SNA 2008).",
-      "q-3": "pandas.DataFrame.groupby() enables efficient vectorized grouped aggregations in Python.",
-      "q-4": "ASI focuses on the organized manufacturing sector, not agriculture or services.",
-      "q-5": "Non-sampling errors arise during data collection, processing, and non-response, not from sample selection.",
-      "q-6": "HAVING filters grouped results after aggregation; WHERE filters rows before grouping.",
-      "q-7": "Official Statistics must be impartial, reliable, and timely for public use.",
-      "q-8": "DDI standard documents social science data across the entire research lifecycle.",
-      "q-9": "The 40/60 rule gives 60% weight to new evidence and 40% to historical competency.",
-      "q-10": "Imputation replaces missing or inconsistent values with statistically estimated ones.",
-      "q-11": "FastAPI's Depends() is used to inject dependencies like the current user into route handlers.",
-      "q-12": "pgvector enables efficient similarity search over vector embeddings in PostgreSQL.",
-      "q-13": "Organizational priority reflects how strategically important a competency is for the organization.",
-      "q-14": "Rebasing updates the base year in national accounts to reflect current economic structure.",
-      "q-15": "Environment variables or a secrets manager should be used for sensitive configuration values.",
-    };
-
-    return {
-      question_id: questionId,
-      is_correct: isCorrect,
-      explanation: explanations[questionId] || "Answer evaluated against competency benchmarks.",
-      correct_answer: correctAnswer,
-    } as unknown as T;
-  }
-  if (endpoint.includes("/finish")) {
-    return {
-      assessment_id: getMockAssessmentId(token),
-      score: 100,
-      completed_at: new Date().toISOString(),
-    } as unknown as T;
-  }
-  if (endpoint.includes("/score")) {
-    const assessmentId = getMockAssessmentId(token);
-    const answers = Array.from(MOCK_ANSWERS.values());
-    
-    const totalQuestions = MOCK_ASSESSMENT.questions.length;
-    const correctAnswers = answers.filter((a) => a.isCorrect).length;
-    const accuracy = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
-    
-    const competencyUpdates = [
-      {
-        competency_id: "comp-2",
-        competency_name: "Survey Design",
-        previous_level: 3,
-        evidence_level: 4,
-        updated_level: 4,
-        previous_gap: 1,
-        new_gap: 0,
-      },
-      {
-        competency_id: "comp-1",
-        competency_name: "National Accounts",
-        previous_level: 2,
-        evidence_level: 3,
-        updated_level: 3,
-        previous_gap: 1,
-        new_gap: 0,
-      },
-    ];
-
-    return {
-      message: "Post-learning assessment scored successfully (40/60 Rule Applied)",
-      assessment_id: assessmentId,
-      total_questions: totalQuestions,
-      correct_answers: correctAnswers,
-      accuracy,
-      overall_score: accuracy,
-      competency_updates: competencyUpdates,
-      refreshed_recommendations_count: 6,
-    } as unknown as T;
-  }
-  if (endpoint.includes("/chunks")) {
-    return [
-      { id: "chunk-1", chunk_index: 0, content: "SNA 2008 macro-aggregates definition and estimation rules.", token_count: 120 },
-    ] as unknown as T;
-  }
-  if (endpoint.includes("/api/learning/content")) {
-    return MOCK_LEARNING_CONTENT as unknown as T;
-  }
-  if (endpoint.includes("/api/ai-questions")) {
-    return MOCK_AI_QUESTIONS as unknown as T;
-  }
-  return undefined;
+export interface JobStatus {
+  job_id: string;
+  status: "queued" | "running" | "done" | "failed";
+  created_at: string;
+  updated_at: string;
+  result: {
+    learning_content_id: string;
+    generated_count: number;
+    questions: AIGeneratedQuestionItem[];
+  } | null;
+  error: string | null;
 }
 
-// -------------------------------------------------------------
-// CORE FETCH WRAPPER
-// -------------------------------------------------------------
-
-let lastDbFailureTime = 0;
+export async function pollJob(
+  token: string,
+  jobId: string,
+  intervalMs = 2000,
+  timeoutMs = 120_000
+): Promise<JobStatus> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const job = await request<JobStatus>(`/api/jobs/${jobId}`, {}, token);
+    if (job.status === "done" || job.status === "failed") return job;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  throw new Error(`Job ${jobId} timed out after ${timeoutMs / 1000}s`);
+}
 
 async function request<T>(
   endpoint: string,
   options: RequestInit = {},
   token?: string
 ): Promise<T> {
-  const fallback = getDemoFallback<T>(endpoint, options, token);
-
   // Ensure real requests are prioritized with healthy timeout
   const headers: Record<string, string> = {
     "Accept": "application/json",
@@ -418,9 +279,6 @@ async function request<T>(
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      if (response.status >= 500) {
-        lastDbFailureTime = Date.now();
-      }
       let errorDetail = `Request failed with status ${response.status}`;
       try {
         const errJson = await response.json();
@@ -434,11 +292,6 @@ async function request<T>(
     return response.json();
   } catch (err: unknown) {
     clearTimeout(timeoutId);
-    lastDbFailureTime = Date.now();
-    // If backend is unreachable or returns network error, fallback gracefully to offline demo data
-    if (fallback !== undefined) {
-      return fallback;
-    }
     throw err;
   }
 }
@@ -572,21 +425,24 @@ export async function getRecommendations(token: string): Promise<{
 // LEARNING CONTENT & RAG
 // -------------------------------------------------------------
 
-export async function uploadLearningContent(
-  token: string,
-  file: File
-): Promise<{
-  message: string;
-  content_id: string;
+export interface UploadLearningContentResponse {
+  message?: string;
+  id?: string;
+  content_id?: string;
   file_name: string;
   file_type: string;
   chunk_count: number;
   status: string;
-}> {
+}
+
+export async function uploadLearningContent(
+  token: string,
+  file: File
+): Promise<UploadLearningContentResponse & { content_id: string }> {
   const formData = new FormData();
   formData.append("file", file);
 
-  return request(
+  const response = await request<UploadLearningContentResponse>(
     "/api/learning/upload",
     {
       method: "POST",
@@ -594,7 +450,15 @@ export async function uploadLearningContent(
     },
     token
   );
+  const contentId = response.id ?? response.content_id;
+
+  if (!contentId) {
+    throw new Error("Upload response did not include a content id.");
+  }
+
+  return { ...response, content_id: contentId };
 }
+
 
 export async function getLearningContents(token: string): Promise<LearningMaterial[]> {
   return request<LearningMaterial[]>("/api/learning/content", {}, token);
@@ -630,11 +494,31 @@ export async function generateAIQuestions(
     difficulty,
     count: count.toString(),
   });
-  return request(
+
+  // 1. Enqueue — backend returns 202 immediately
+  const enqueued = await request<{
+    job_id: string;
+    poll_url: string;
+    learning_content_id: string;
+    requested_count: number;
+  }>(
     `/api/ai-questions/generate?${params.toString()}`,
     { method: "POST" },
     token
   );
+
+  // 2. Poll until the background job completes
+  const job = await pollJob(token, enqueued.job_id);
+
+  if (job.status === "failed") {
+    throw new Error(job.error ?? "MCQ generation failed.");
+  }
+
+  return {
+    learning_content_id: job.result?.learning_content_id ?? learningContentId,
+    generated_count: job.result?.generated_count ?? 0,
+    questions: job.result?.questions ?? [],
+  };
 }
 
 export async function getAIQuestions(token: string): Promise<AIGeneratedQuestionItem[]> {
@@ -690,4 +574,625 @@ export async function getCourses(): Promise<Array<{
   level: string;
 }>> {
   return request("/api/courses");
+}
+
+// -------------------------------------------------------------
+// AI CHATBOT (RAG GROUNDED)
+// -------------------------------------------------------------
+
+export interface ChatSourceItem {
+  chunk_id: string;
+  text: string;
+  similarity: number;
+}
+
+export interface ChatMessageItem {
+  id: string;
+  session_id: string;
+  user_id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  created_at: string;
+}
+
+export interface ChatMessageAnswer {
+  session_id: string;
+  user_message: ChatMessageItem;
+  assistant_message: ChatMessageItem;
+  sources: ChatSourceItem[];
+  grounded_gaps: string[];
+  recommended_courses: string[];
+}
+
+export interface ChatSessionSummary {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+}
+
+export async function sendChatMessage(
+  token: string,
+  message: string,
+  sessionId?: string
+): Promise<ChatMessageAnswer> {
+  return request(
+    "/api/chatbot/message",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        message,
+        session_id: sessionId || null,
+      }),
+    },
+    token
+  );
+}
+
+export async function getChatHistory(
+  token: string,
+  sessionId: string
+): Promise<ChatMessageItem[]> {
+  return request(`/api/chatbot/history/${sessionId}`, {}, token);
+}
+
+export async function getChatSessions(
+  token: string
+): Promise<ChatSessionSummary[]> {
+  return request("/api/chatbot/sessions", {}, token);
+}
+
+// -------------------------------------------------------------
+// COMMUNITY SPACE (EMPLOYEE INTERACTION)
+// -------------------------------------------------------------
+
+export interface AuthorSummary {
+  id: string;
+  full_name: string;
+  email: string;
+  designation: string | null;
+  department: string | null;
+  access_role: "employee" | "admin";
+}
+
+export interface CommentItem {
+  id: string;
+  post_id: string;
+  author_id: string;
+  author: AuthorSummary;
+  body: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PostItem {
+  id: string;
+  author_id: string;
+  author: AuthorSummary;
+  title: string;
+  body: string;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+  likes_count: number;
+  comments_count: number;
+  has_liked: boolean;
+}
+
+export interface PostDetailItem extends PostItem {
+  comments: CommentItem[];
+}
+
+export interface LikeToggleResult {
+  post_id: string;
+  liked: boolean;
+  likes_count: number;
+}
+
+export async function getCommunityPosts(
+  token: string,
+  tag?: string,
+  search?: string
+): Promise<PostItem[]> {
+  const params = new URLSearchParams();
+  if (tag) params.set("tag", tag);
+  if (search) params.set("search", search);
+  const queryStr = params.toString() ? `?${params.toString()}` : "";
+  return request(`/api/community/posts${queryStr}`, {}, token);
+}
+
+export async function getCommunityPost(
+  token: string,
+  postId: string
+): Promise<PostDetailItem> {
+  return request(`/api/community/posts/${postId}`, {}, token);
+}
+
+export async function createCommunityPost(
+  token: string,
+  title: string,
+  body: string,
+  tags: string[] = []
+): Promise<PostItem> {
+  return request(
+    "/api/community/posts",
+    {
+      method: "POST",
+      body: JSON.stringify({ title, body, tags }),
+    },
+    token
+  );
+}
+
+export async function deleteCommunityPost(
+  token: string,
+  postId: string
+): Promise<{ message: string; post_id: string }> {
+  return request(
+    `/api/community/posts/${postId}`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
+}
+
+export async function addCommunityComment(
+  token: string,
+  postId: string,
+  body: string
+): Promise<CommentItem> {
+  return request(
+    `/api/community/posts/${postId}/comments`,
+    {
+      method: "POST",
+      body: JSON.stringify({ body }),
+    },
+    token
+  );
+}
+
+export async function deleteCommunityComment(
+  token: string,
+  commentId: string
+): Promise<{ message: string; comment_id: string }> {
+  return request(
+    `/api/community/comments/${commentId}`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
+}
+
+export async function toggleCommunityLike(
+  token: string,
+  postId: string
+): Promise<LikeToggleResult> {
+  return request(
+    `/api/community/posts/${postId}/like`,
+    {
+      method: "POST",
+    },
+    token
+  );
+}
+
+// -------------------------------------------------------------
+// EMPLOYEE EXPERIENCE REVIEWS
+// -------------------------------------------------------------
+
+export interface ExperienceReviewItem {
+  id: string;
+  user_id: string;
+  user_name: string;
+  user_role: string;
+  category: "platform" | "training_program" | "onboarding";
+  rating: number;
+  comments: string | null;
+  created_at: string;
+}
+
+export interface CategoryAggregationItem {
+  category: string;
+  average_rating: number;
+  total_reviews: number;
+  distribution: Record<string, number>;
+}
+
+export interface AggregatedReviewsData {
+  overall_average: number;
+  total_reviews: number;
+  categories: CategoryAggregationItem[];
+  recent_reviews: ExperienceReviewItem[];
+}
+
+export async function submitExperienceReview(
+  token: string,
+  category: "platform" | "training_program" | "onboarding",
+  rating: number,
+  comments?: string
+): Promise<ExperienceReviewItem> {
+  return request(
+    "/api/experience-reviews",
+    {
+      method: "POST",
+      body: JSON.stringify({ category, rating, comments }),
+    },
+    token
+  );
+}
+
+export async function getMyExperienceReviews(
+  token: string
+): Promise<ExperienceReviewItem[]> {
+  return request("/api/experience-reviews/my", {}, token);
+}
+
+export async function getAggregatedExperienceReviews(
+  token: string
+): Promise<AggregatedReviewsData> {
+  return request("/api/experience-reviews/aggregated", {}, token);
+}
+
+// -------------------------------------------------------------
+// COURSE COMPLETION & HELPFULNESS REVIEWS
+// -------------------------------------------------------------
+
+export interface CourseReviewItem {
+  id: string;
+  user_id: string;
+  user_name: string;
+  course_id: string;
+  helpfulness_rating: number;
+  comments: string | null;
+  created_at: string;
+}
+
+export interface CourseReviewStats {
+  course_id: string;
+  average_helpfulness: number;
+  total_reviews: number;
+  reviews: CourseReviewItem[];
+}
+
+export async function submitCourseReview(
+  token: string,
+  courseId: string,
+  helpfulnessRating: number,
+  comments?: string
+): Promise<CourseReviewItem> {
+  return request(
+    `/api/courses/${courseId}/reviews`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        helpfulness_rating: helpfulnessRating,
+        comments,
+      }),
+    },
+    token
+  );
+}
+
+export async function getCourseReviews(
+  courseId: string,
+  token?: string
+): Promise<CourseReviewItem[]> {
+  return request(`/api/courses/${courseId}/reviews`, {}, token);
+}
+
+export async function getCourseReviewStats(
+  courseId: string,
+  token?: string
+): Promise<CourseReviewStats> {
+  return request(`/api/courses/${courseId}/reviews/stats`, {}, token);
+}
+export interface TPACApprovalRequestItem {
+  id: string;
+  course_id: string;
+  requested_by: string;
+  status: string;
+  request_date: string;
+  approval_date?: string;
+  approved_by?: string;
+  comments?: string;
+}
+
+export interface TPACApprovalResponse {
+  message: string;
+  approval_request: TPACApprovalRequestItem;
+}
+
+export interface PredictedSkillGap {
+  competency_id: string;
+  competency_name: string;
+  predicted_gap_increase: number;
+  timeframe: string;
+  reason: string;
+}
+
+export interface PredictedCourseSuccess {
+  course_id: string;
+  user_id: string;
+  success_probability: number;
+  predicted_completion_time_days: number;
+  confidence_score: number;
+  factors: string[];
+}
+
+export async function submitTPACRequest(courseId: string, requestedBy: string, token?: string): Promise<TPACApprovalResponse> {
+  return request(`/api/tpac/request?course_id=${courseId}&requested_by=${requestedBy}`, { method: "POST" }, token);
+}
+
+export async function getTPACRequests(status?: string, token?: string): Promise<TPACApprovalRequestItem[]> {
+  const url = status ? `/api/tpac/requests?status=${status}` : `/api/tpac/requests`;
+  return request(url, {}, token);
+}
+
+export async function approveTPACRequest(requestId: string, approvedBy: string, comments?: string, token?: string): Promise<TPACApprovalResponse> {
+  let url = `/api/tpac/request/${requestId}/approve?approved_by=${approvedBy}`;
+  if (comments) url += `&comments=${encodeURIComponent(comments)}`;
+  return request(url, { method: "PUT" }, token);
+}
+
+export async function rejectTPACRequest(requestId: string, rejectedBy: string, comments: string, token?: string): Promise<TPACApprovalResponse> {
+  return request(`/api/tpac/request/${requestId}/reject?rejected_by=${rejectedBy}&comments=${encodeURIComponent(comments)}`, { method: "PUT" }, token);
+}
+
+export async function getPredictedSkillGaps(departmentId?: string, token?: string): Promise<PredictedSkillGap[]> {
+  const url = departmentId ? `/api/analytics/predict/skill-gaps?department_id=${departmentId}` : `/api/analytics/predict/skill-gaps`;
+  return request(url, {}, token);
+}
+
+export async function getPredictedCourseSuccess(courseId: string, userId: string, token?: string): Promise<PredictedCourseSuccess> {
+  return request(`/api/analytics/predict/course-success?course_id=${courseId}&user_id=${userId}`, {}, token);
+}
+
+// -------------------------------------------------------------
+// AUDIT LOGS (ADMIN)
+// -------------------------------------------------------------
+
+export async function getAuditLogs(token: string, limit?: number): Promise<Array<{
+  id: string;
+  user_id: string | null;
+  action: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  details: Record<string, unknown> | null;
+  ip_address: string | null;
+  created_at: string;
+}>> {
+  const params = new URLSearchParams();
+  if (limit) params.set("limit", limit.toString());
+  const url = params.toString() ? `/api/audit?${params.toString()}` : "/api/audit";
+  return request(url, {}, token);
+}
+
+// -------------------------------------------------------------
+// DPDP CONSENT (ADMIN)
+// -------------------------------------------------------------
+
+export interface DPDPConsentResponse {
+  id: string;
+  user_id: string;
+  purpose: string;
+  consent_given: boolean;
+  consent_date: string | null;
+  withdrawn_date: string | null;
+  legal_basis: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DPDPConsentUpdateRequest {
+  consent_given: boolean;
+  legal_basis: string | null;
+  notes: string | null;
+}
+
+export async function getDPDPConsent(userId: string, token: string): Promise<DPDPConsentResponse> {
+  return request(`/api/dpdp/consent/${userId}`, {}, token);
+}
+
+export async function updateDPDPConsent(userId: string, data: DPDPConsentUpdateRequest, token: string): Promise<DPDPConsentResponse> {
+  return request(`/api/dpdp/consent/${userId}`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  }, token);
+}
+
+// -------------------------------------------------------------
+// ADMIN USER MANAGEMENT
+// -------------------------------------------------------------
+
+export interface AdminCreateUserRequest {
+  email: string;
+  password: string;
+  full_name: string;
+  role_id?: string;
+  department?: string;
+  designation?: string;
+  access_role: "employee" | "admin" | "manager";
+}
+
+export async function adminCreateUser(data: AdminCreateUserRequest, token: string): Promise<UserResponse> {
+  return request("/api/auth/admin/create", {
+    method: "POST",
+    body: JSON.stringify(data),
+  }, token);
+}
+
+export async function adminListUsers(token: string): Promise<UserResponse[]> {
+  return request("/api/auth/admin/users", {}, token);
+}
+
+export async function adminDeactivateUser(userId: string, token: string): Promise<{ message: string; user_id: string }> {
+  return request(`/api/auth/admin/users/${userId}/deactivate`, {
+    method: "PATCH",
+  }, token);
+}
+
+// -------------------------------------------------------------
+// COURSE CRUD (ADMIN)
+// -------------------------------------------------------------
+
+export interface CourseCreateRequest {
+  title: string;
+  description?: string;
+  provider?: string;
+  source?: string;
+  external_id?: string;
+  url?: string;
+  duration_minutes?: number;
+  level?: string;
+}
+
+export async function createCourse(data: CourseCreateRequest, token: string): Promise<{
+  id: string;
+  title: string;
+  description: string | null;
+  provider: string | null;
+  source: string;
+  external_id: string | null;
+  url: string | null;
+  duration_minutes: number | null;
+  level: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}> {
+  return request("/api/courses", {
+    method: "POST",
+    body: JSON.stringify(data),
+  }, token);
+}
+
+export async function updateCourse(courseId: string, data: Partial<CourseCreateRequest>, token: string): Promise<{
+  id: string;
+  title: string;
+  description: string | null;
+  provider: string | null;
+  source: string;
+  external_id: string | null;
+  url: string | null;
+  duration_minutes: number | null;
+  level: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}> {
+  return request(`/api/courses/${courseId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  }, token);
+}
+
+export async function deleteCourse(courseId: string, token: string): Promise<void> {
+  return request(`/api/courses/${courseId}`, {
+    method: "DELETE",
+  }, token);
+}
+
+// -------------------------------------------------------------
+// QUESTION CRUD (ADMIN)
+// -------------------------------------------------------------
+
+export interface QuestionCreateRequest {
+  competency_id: string;
+  question_text: string;
+  question_type?: string;
+  difficulty?: string;
+  options: Record<string, string>;
+  correct_answer: string;
+  explanation?: string;
+  bloom_tag?: string;
+}
+
+export async function createQuestion(data: QuestionCreateRequest, token: string): Promise<{
+  id: string;
+  competency_id: string;
+  question_text: string;
+  question_type: string;
+  difficulty: string;
+  options: Record<string, string>;
+  correct_answer: string;
+  explanation: string | null;
+  source_content_id: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}> {
+  return request("/api/questions", {
+    method: "POST",
+    body: JSON.stringify(data),
+  }, token);
+}
+
+export async function updateQuestion(questionId: string, data: Partial<QuestionCreateRequest>, token: string): Promise<{
+  id: string;
+  competency_id: string;
+  question_text: string;
+  question_type: string;
+  difficulty: string;
+  options: Record<string, string>;
+  correct_answer: string;
+  explanation: string | null;
+  source_content_id: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}> {
+  return request(`/api/questions/${questionId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  }, token);
+}
+
+export async function deleteQuestion(questionId: string, token: string): Promise<void> {
+  return request(`/api/questions/${questionId}`, {
+    method: "DELETE",
+  }, token);
+}
+
+// -------------------------------------------------------------
+// RECOMMENDATION ACTIONS
+// -------------------------------------------------------------
+
+export async function acceptRecommendation(recommendationId: string, token: string): Promise<{ message: string; recommendation_id: string }> {
+  return request(`/api/recommendations/${recommendationId}/accept`, {
+    method: "POST",
+  }, token);
+}
+
+export async function dismissRecommendation(recommendationId: string, token: string): Promise<{ message: string; recommendation_id: string }> {
+  return request(`/api/recommendations/${recommendationId}/dismiss`, {
+    method: "POST",
+  }, token);
+}
+
+// -------------------------------------------------------------
+// ASSESSMENT HISTORY
+// -------------------------------------------------------------
+
+export interface AssessmentHistoryItem {
+  assessment_id: string;
+  assessment_type: string;
+  status: string;
+  score: number | null;
+  total_questions: number;
+  answered_questions: number;
+  started_at: string;
+  completed_at: string | null;
+}
+
+export interface AssessmentHistoryResponse {
+  total_assessments: number;
+  assessments: AssessmentHistoryItem[];
+}
+
+export async function getAssessmentHistory(token: string): Promise<AssessmentHistoryResponse> {
+  return request("/api/assessments/history", {}, token);
 }

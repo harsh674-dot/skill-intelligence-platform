@@ -57,3 +57,14 @@ class Role(Base):
         back_populates="role",
         cascade="all, delete-orphan",
     )
+
+    official_profiles = relationship(
+        "OfficialProfile",
+        back_populates="role",
+    )
+
+    competency_mappings = relationship(
+        "CompetencyMapping",
+        back_populates="role",
+        cascade="all, delete-orphan",
+    )
